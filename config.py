@@ -8,4 +8,4 @@ class DecConfig(Config):
     DEBUG=True
     SQLALCHEMY_DATABASE_URI='mysql+pymysql://root:root@127.0.0.1:3306/flask'
     SQLALCHEMY_ECHO=True
-
+    SQLALCHEMY_TRACK_MODIFICATIONS=True
