@@ -1,0 +1,29 @@
+{% macro render_pagination(pagination,endpoint) %}
+<ul class="pagination">
+    <li>
+        <a href="{{url_for('home',page=pagination.prev().page)}}" aria-label="Previous">
+            <span aria-hidden="true">&laquo;</span>
+        </a>
+    </li>
+    {%for page in pagination.iter_pages() %}
+    {%if page %}
+    {% if page != pagination.page%}
+    <li>
+        <a href="{{url_for(endpoint,page=page) }}">
+            {{page}}
+        </a>
+    </li>
+    {% else %}
+    <li><a href="">{{page}}</a></li>
+    {% endif %}
+    {% else %}
+    <li><a href="">....</a></li>
+    {% endif %}
+    {% endfor%}
+    <li>
+        <a href="{{url_for('home',page=pagination.next().page)}}" aria-label="Next">
+            <span aria-hidden="true">&raquo;</span>
+        </a>
+    </li>
+</ul>
+{% endmacro %}
