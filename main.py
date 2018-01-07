@@ -29,9 +29,9 @@ class Post(db.Model):
     content=db.Column(db.Text())
     title=db.Column(db.String(255))
     publish_date=db.Column(db.DateTime())
-    comments=db.relationship('Comment',backref='post',lazy='dylamic')
+    comments=db.relationship('Comment',backref='post',lazy='dynamic')
     user_id=db.Column(db.Integer(),db.ForeignKey('user.id'))
-    tags=db.relationship('Tag',secondary=tags,backref=db.backref('posts',lazy='dylamic'))
+    tags=db.relationship('Tag',secondary=tags,backref=db.backref('posts',lazy='dynamic'))
     def __init__(self,title):
         self.title=title
     def __repr__(self):
