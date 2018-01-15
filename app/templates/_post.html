@@ -1,0 +1,27 @@
+<div class="row">
+
+    <div class="col-lg-9">
+        {% for post in posts.items%}
+        <div class="row">
+            <div class="col-lg-12">
+                <img  class =' img-rounded profile-thumbnail' src="{{ post.user.gravatar(size=40)}}" alt="">
+                <a href="{{url_for('main.user',username=post.user.username)}}">{{post.user.username}}</a>
+                <p style="float:right;">{{moment(post.publish_date).fromNow()}}</p>
+            </div>
+            <div class="row">
+            <div class="col-lg-12">
+
+                <h3>{{post.title}}</h3>
+            </div>
+                </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-12">
+                {{post.content |truncate(255)|safe}}
+                <a href="{{url_for('main.post',post_id=post.id)}}">Read More</a>
+            </div>
+        </div>
+        <hr>
+        {%endfor%}
+    </div>
+</div>

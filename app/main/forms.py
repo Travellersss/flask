@@ -37,17 +37,18 @@ class EditProfileAdminForm(Form):
 
     def __init__(self,user,*args,**kwargs):
         super(EditProfileAdminForm,self).__init__(*args,**kwargs)
-        self.role.choices =[(role.id,role.name) for role in Role.query.order_by(Role.name).all()]
+        self.role.choices =[(role.id,role.name)
+                            for role in Role.query.order_by(Role.name).all()]
         self.user=user
     def validate_email(self, field):
-        if User.query.filter_by(email=field.data).first() and field.data!=self.user.email:
+        if field.data!=self.user.email and User.query.filter_by(email=field.data).first():
             raise ValidationError('Email already register')
 
     def validate_username(self, field):
-        if User.query.filter_by(username=field.data).first() and field.data!=self.user.username:
+        if field.data!=self.user.username and User.query.filter_by(username=field.data).first():
             raise ValidationError('username already in used')
 
 class PostForm(Form):
-    tilte = StringField('Title',validators = [Required(),Length(1,64)])
+    title = StringField('Title',validators = [Required(),Length(1,64)])
     body = TextAreaField('请输入你的内容！',validators=[Required()])
     submit= SubmitField('Submit')

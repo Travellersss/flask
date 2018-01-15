@@ -75,14 +75,16 @@ def login():
     return render_template('login.html',form = form )
 
 @main.route('/user/<username>')
-def user(username):
+@main.route('/user/<username>/<int:page>')
+def user(username,page=1):
     user =User.query.filter_by(username =username).first()
     if user is None:
         abort(404)
-    return render_template('user.html',user = user)
+    posts = user.posts.order_by(Post.publish_date.desc()).paginate(1,10)
+    return render_template('user.html',user = user ,posts=posts)
 
 from .forms import EditProfileForm
-from flask_login import current_user
+
 
 @main.route('/edit-profile',methods=["POST","GET"])
 @login_required
@@ -104,13 +106,14 @@ def edit_profile():
 from ..decorators import admin_required
 from .forms import EditProfileAdminForm
 from ..models import Role
-@main.route('/edit-profile/<int:id>',methods=["GET","POST"])
+from flask_login import login_required
 
+@main.route('/edit-profile/<int:id>',methods=["GET","POST"])
 @login_required
 @admin_required
 def edit_profile_admin(id):
-    user =User.query.get_or_404(id)
-    form = EditProfileAdminForm(user=user)
+    user = User.query.get_or_404(id)
+    form = EditProfileAdminForm(user = user)
     if form.validate_on_submit():
         user.email =form.email.data
         user.usernmae=form.username.data
@@ -139,8 +142,9 @@ from ..models import Permission
 def index(page=1):
     form = PostForm()
     if current_user.can(Permission.WRITE_ARTICLES) and form.validate_on_submit():
-        post =Post(title=form.title.data,content=form.content.data,user = current_user._get_current_object())
+        post =Post(title=form.title.data,content=form.body.data,user = current_user._get_current_object())
         db.session.add(post)
+        db.session.commit()
         return redirect(url_for('main.index',page=1))
     posts=Post.query.order_by(Post.publish_date.desc()).paginate(page,10)
     recent, top_tags = siderbar_data()

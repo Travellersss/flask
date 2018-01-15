@@ -67,7 +67,7 @@ class User(UserMixin,db.Model):
 
     def __init__(self,**kwargs):
         super(User,self).__init__(**kwargs)
-        if self.mail is not None and self.avatar_hash is None:
+        if self.email is not None and self.avatar_hash is None:
             self.avatar_hash=hashlib.md5(self.email.encode('utf-8')).hexdigest()
 
 
@@ -139,6 +139,27 @@ class User(UserMixin,db.Model):
         return True
 
 
+    @staticmethod
+    def generate_fake(count=100):
+        from sqlalchemy.exc import IntegrityError
+        from random import seed
+        import forgery_py
+        seed()
+        for i in range(count):
+            u =User(email=forgery_py.internet.email_address(),
+                    username=forgery_py.internet.user_name(True),
+                    password=forgery_py.lorem_ipsum.word(),
+
+                    name=forgery_py.name.full_name(),
+                    location=forgery_py.address.city(),
+                    about_me=forgery_py.lorem_ipsum.sentence(),
+                    merber_since=forgery_py.date.date(True))
+            db.session.add(u)
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+
     def __repr__(self):
         return self.username
 
@@ -163,6 +184,23 @@ class Post(db.Model):
     comments=db.relationship('Comment',backref='post',lazy='dynamic')
     user_id=db.Column(db.Integer(),db.ForeignKey('user.id'))
     tags=db.relationship('Tag',secondary=tags,backref=db.backref('posts',lazy='dynamic'))
+
+    @staticmethod
+    def generate_fake(count=100):
+        from sqlalchemy.exc import IntegrityError
+        from random import seed,randint
+        import forgery_py
+        seed()
+        user_count=User.query.count()
+
+        for i in range(count):
+            u=User.query.offset(randint(0,user_count-1)).first()
+            p=Post(title=forgery_py.lorem_ipsum.sentence(),
+                   content=forgery_py.lorem_ipsum.sentences(randint(1,3)),
+                   publish_date=forgery_py.date.date(True),
+                   user=u)
+            db.session.add(p)
+            db.session.commit()
 
     def __repr__(self):
         return self.title
