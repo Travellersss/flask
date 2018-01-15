@@ -1,7 +1,7 @@
 {% macro render_pagination(pagination,endpoint) %}
 <ul class="pagination">
     <li>
-        <a href="{{url_for('home',page=pagination.prev().page)}}" aria-label="Previous">
+        <a href="{{url_for('main.index',page=pagination.prev().page)}}" aria-label="Previous">
             <span aria-hidden="true">&laquo;</span>
         </a>
     </li>
@@ -21,7 +21,7 @@
     {% endif %}
     {% endfor%}
     <li>
-        <a href="{{url_for('home',page=pagination.next().page)}}" aria-label="Next">
+        <a href="{{url_for('main.index',page=pagination.next().page)}}" aria-label="Next">
             <span aria-hidden="true">&raquo;</span>
         </a>
     </li>

@@ -1,0 +1,55 @@
+{% extends 'base.html'%}
+
+{% block title%}
+Flasky
+{% endblock%}
+
+{% block body %}
+<div class="row">
+    <div class=" col-lg-4 col-lg-offset-2 ">
+        <img src="{{user.gravatar(size=256)}}" alt="userImg"class="img-rounded profile-thumbnail">
+    </div>
+    <div class="col-lg-4">
+        <h1>{{user.username}}</h1>
+        {% if user.name or user.location%}
+        <p>
+            {% if user.name %}
+            {{user.name}}
+            {%endif%}
+            {% if user.location %}
+            From <a href="http://maps.baidu.com/?q={{user.location}}">
+            {{user.location }}
+        </a>
+            {% endif%}
+        </p>
+        {% endif%}
+        {% if current_user.is_administrator() %}
+        <p><a href="mailto:{{user.email}}">{{user.email}}</a></p>
+        {%endif%}
+        {% if user.about_me%}
+        <p>{{user.about_me}}</p>
+        {% endif%}
+        <p>
+            Menber since {{moment(user.merber_since).format('L')}}.
+            Last seen {{moment(user.last_seen).fromNow()}}
+        </p>
+        {% if current_user.is_administrator()%}
+    <a href="{{url_for('main.edit_profile_admin',id=user.id)}}" class="btn btn-danger">
+        Edit Profile [Admin]
+    </a>
+
+        {% else %}
+        {% if user==current_user %}
+        <a href="{{url_for('main.edit_profile')}}" class="btn btn-default">
+            Edit Profile
+        </a>
+        {%endif%}
+        {%endif%}
+    </div>
+
+</div>
+
+{% endblock%}
+{%block footer%}
+{{ moment.include_moment()}}
+{%endblock%}

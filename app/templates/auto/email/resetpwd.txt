@@ -1,0 +1,7 @@
+Dear {{user.username}},
+        welcome to Flasky!
+        请点击下面链接更改你的密码：
+        {{url_for('auto.comfirmpwd',token=token,_external=True)}},
+        Sincerely,
+        The flasky team
+        note:replies to this email address are not monitored.
