@@ -23,7 +23,7 @@ def login():
 def logout():
     logout_user()
     flash('你已经推出登陆')
-    return redirect(url_for('main.home'))
+    return redirect(url_for('main.index'))
 
 
 @auto.route('/register',methods=["POST",'GET'])
@@ -37,7 +37,7 @@ def register():
         send_email(user.email,'确认你的账户','auto/email/confirm',user=user,token=token)
 
         flash('邮件确认已发送，请确认')
-        return redirect(url_for('main.home'))
+        return redirect(url_for('main.index'))
     return render_template('auto/register.html',form=form)
 
 
@@ -45,14 +45,14 @@ def register():
 @login_required
 def confirm(token):
     if current_user.confirmed:
-        return redirect(url_for('main.home'))
+        return redirect(url_for('main.index'))
     if current_user.confirm(token):
         db.session.commit()
         flash('你已经确认有的账号了')
 
     else:
         flash('The confirmation link is invalid or has expired')
-    return redirect(url_for('main.home'))
+    return redirect(url_for('main.index'))
 
 @auto.before_app_request
 def before_request():
@@ -65,7 +65,7 @@ def before_request():
 @auto.route('/unconfirmed')
 def unconfirmed():
     if current_user.is_anonymous or current_user.confirmed:
-        return redirect(url_for('main.home'))
+        return redirect(url_for('main.index'))
     return render_template('auto/unconfirmed.html')
 
 
@@ -76,7 +76,7 @@ def resendmail():
     send_email(current_user.email, '确认你的账户', 'auto/email/confirm', user=current_user, token=token)
 
     flash('邮件确认已再次发送，请确认')
-    return redirect(url_for('main.home'))
+    return redirect(url_for('main.index'))
 
 
 @auto.route('/resetpwd',methods=["POST","GET"])

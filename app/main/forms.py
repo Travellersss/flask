@@ -10,8 +10,9 @@ class UserForm(Form):
     username = StringField('Please put your email',validators = [DataRequired(),Email()])
     password = PasswordField('Please put your password',validators = [DataRequired(),Length(max=16)])
 class CommentForm(Form):
-    name= StringField('Name',validators = [DataRequired(),Length(max=255)])
+
     text=TextAreaField(u'Comment',validators = [DataRequired()])
+    submit=SubmitField('提交')
 
 class EditProfileForm(Form):
     name=StringField('Real name',validators =[Length(0,64)])
@@ -25,8 +26,9 @@ from ..models import User,Role
 from wtforms import ValidationError
 
 class EditProfileAdminForm(Form):
-    email = StringField('Email',validators = [Required(),Length(1,64),Email])
-    username =StringField('Username',validators=[Required(),Length(1,64),Regexp('^[^_.]',0,'用户名不能以_.开头 ')])
+    #注意在validators中不要少了(),例如Required,会导致报错__init__ takes from 1 to 2 positional arguments but 3 were given
+    email = StringField('Email',validators = [Required(),Length(1,64),Email()])
+    username =StringField('Username',validators=[Required(),Length(1,64)])
     confirmed = BooleanField('Confirmed')
     role =SelectField('Role',coerce=int)
     name=StringField('Real name',validators =[Length(0,64)])
@@ -48,7 +50,8 @@ class EditProfileAdminForm(Form):
         if field.data!=self.user.username and User.query.filter_by(username=field.data).first():
             raise ValidationError('username already in used')
 
+from flask_pagedown.fields import PageDownField
 class PostForm(Form):
     title = StringField('Title',validators = [Required(),Length(1,64)])
-    body = TextAreaField('请输入你的内容！',validators=[Required()])
+    body = PageDownField('请输入你的内容！',validators=[Required()])
     submit= SubmitField('Submit')

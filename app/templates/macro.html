@@ -1,29 +1,47 @@
-{% macro render_pagination(pagination,endpoint) %}
+{% macro render_pagination(pagination,endpoint,username=None) %}
 <ul class="pagination">
-    <li>
-        <a href="{{url_for(endpoint,page=pagination.prev().page)}}" aria-label="Previous">
+    <li  {% if not pagination.has_prev %} class="disabled"{% endif %}>
+        {% if username==None%}
+        <a href="{% if pagination.has_prev%}{{url_for(endpoint,page=pagination.prev().page)}}{%else%}#{%endif%}" aria-label="Previous">
             <span aria-hidden="true">&laquo;</span>
         </a>
+        {%else %}
+        <a href="{% if pagination.has_prev%}{{url_for(endpoint,username=username,page=pagination.prev().page)}}{%else%}#{%endif%}" aria-label="Previous">
+            <span aria-hidden="true">&laquo;</span>
+        </a>
+        {% endif %}
     </li>
     {%for page in pagination.iter_pages() %}
     {%if page %}
     {% if page != pagination.page%}
     <li>
+        {% if username==None %}
         <a href="{{url_for(endpoint,page=page) }}">
             {{page}}
         </a>
+        {% else%}
+        <a href="{{url_for(endpoint,username=username,page=page) }}">
+            {{page}}
+        </a>
+        {% endif %}
     </li>
     {% else %}
-    <li><a href="">{{page}}</a></li>
+    <li><a href="#">{{page}}</a></li>
     {% endif %}
     {% else %}
-    <li><a href="">....</a></li>
+    <li class="disabled"><a href="#">&hellip;</a></li>
     {% endif %}
     {% endfor%}
-    <li>
-        <a href="{{url_for(endpoint,page=pagination.next().page)}}" aria-label="Next">
+    <li {% if not pagination.has_next%} class="disabled" {% endif %}>
+        {% if username==None%}
+        <a href="{% if pagination.has_next %}{{url_for(endpoint,page=pagination.next().page)}} {%else%}#{% endif %}" aria-label="Next">
             <span aria-hidden="true">&raquo;</span>
         </a>
+        {% else%}
+        <a href="{% if pagination.has_next %}{{url_for(endpoint,username=username,page=pagination.next().page)}} {%else%}#{% endif %}" aria-label="Next">
+            <span aria-hidden="true">&raquo;</span>
+        </a>
+        {% endif %}
     </li>
 </ul>
 {% endmacro %}

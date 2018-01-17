@@ -2,6 +2,7 @@
 {% import 'bootstrap/wtf.html' as wtf%}
 {% block title%}Home{% endblock%}
 {%block body%}
+
 <div class="row">
     <div class="col-lg-9 ">
         {% if current_user.can(Permission.WRITE_ARTICLES)%}
@@ -10,6 +11,13 @@
     </div>
 </div>
 <hr>
+<div class="row">
+    <ul class="nav nav-tabs">
+  <li role="presentation" class="active"><a href="{{url_for('main.show_all')}}">All</a></li>
+  <li role="presentation"><a href="{{url_for('main.show_followed')}}">Followed</a></li>
+
+</ul>
+</div>
 <div class="row">
 
     <div class="col-lg-9">
@@ -29,7 +37,11 @@
         </div>
         <div class="row">
             <div class="col-lg-12">
+                {% if post.body_html%}
+                {{post.body_html |truncate(255)|safe}}
+                {% else%}
                 {{post.content |truncate(255)|safe}}
+                {% endif %}
                 <a href="{{url_for('main.post',post_id=post.id)}}">Read More</a>
             </div>
         </div>
@@ -67,6 +79,7 @@
     <div class="col-lg-12">
         {{s.render_pagination(posts,'main.index')}}
         {{moment.include_moment()}}
+        {{pagedown.include_pagedown() }}
     </div>
 </div>
 

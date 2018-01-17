@@ -1,0 +1,16 @@
+{% extends 'base.html'%}
+{% import 'bootstrap/wtf.html' as wtf %}
+{% block title%}
+Flasky - Edit Post
+{% endblock %}
+{% block body %}
+<h1>Edit Post</h1>
+<div class="row">
+    {{ wtf.quick_form(form)}}
+
+</div>
+{% endblock%}
+{% block scripts%}
+{{ pagedown.include_pagedown()}}
+{{ moment.include_moment()}}
+{% endblock%}

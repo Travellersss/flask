@@ -3,8 +3,12 @@ from . import db
 from werkzeug.security import generate_password_hash,check_password_hash
 from flask_login import UserMixin,AnonymousUserMixin
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
-from flask import current_app
+from flask import current_app,url_for
 from datetime import datetime
+from markdown import markdown
+import bleach
+from app.exceptions import ValidationError
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -46,6 +50,12 @@ class Role(db.Model):
         return self.name
 
 
+class Follow(db.Model):
+    __tablename__='follows'
+    follower_id=db.Column(db.Integer,db.ForeignKey('user.id'),primary_key=True)
+    followed_id =db.Column(db.Integer,db.ForeignKey('user.id'),primary_key =True)
+    timestamp=db.Column(db.DateTime,default=datetime.utcnow())
+
 import hashlib
 from flask import request
 class User(UserMixin,db.Model):
@@ -63,6 +73,15 @@ class User(UserMixin,db.Model):
     avatar_hash=db.Column(db.String(32))
     role_id = db.Column(db.Integer,db.ForeignKey('role.id'))
     posts=db.relationship('Post',backref='user',lazy='dynamic')
+    comments=db.relationship('Comment',backref='user',lazy='dynamic')
+    followed=db.relationship('Follow',foreign_keys=[Follow.follower_id],
+                             backref=db.backref('follower',lazy='joined'),
+                             lazy='dynamic',
+                             cascade='all,delete-orphan')
+    followers = db.relationship('Follow', foreign_keys=[Follow.followed_id],
+                               backref=db.backref('followed', lazy='joined'),
+                               lazy='dynamic',
+                               cascade='all,delete-orphan')
 
 
     def __init__(self,**kwargs):
@@ -76,6 +95,26 @@ class User(UserMixin,db.Model):
                 self.role = Role.query.filter_by(name='Administrator').first()
             if self.role is None:
                 self.role = Role.query.filter_by(default = True).first()
+
+    def follow(self,user):
+        if not self.is_following(user):
+            f=Follow(follower=self,followed=user)
+            db.session.add(f)
+    def unfollow(self,user):
+        f=self.followed.filter_by(followed_id=user.id).first()
+        if f:
+            db.session.delete(f)
+    def is_following(self,user):
+        return self.followed.filter_by(followed_id=user.id).first() is not None
+    def is_followed_by(self,user):
+        return self.followers.filter_by(
+            follower_id=user.id
+        ).first() is not None
+
+    @property
+    def followed_posts(self):
+        return Post.query.join(Follow,Follow.followed_id==Post.user_id).filter(Follow.follower_id==self.id)
+
 
     def gravatar(self,size=100,default='identicon',rating='g'):
         if request.is_secure:
@@ -139,6 +178,22 @@ class User(UserMixin,db.Model):
         return True
 
 
+    def generate_auth_token(self,expiration):
+        s=Serializer(current_app.config['SECRET_KEY'],expires_in=expiration)
+        return s.dumps({'id':self.id}).decode('utf-8')
+
+
+    @staticmethod
+    def verify_auth_token(token):
+        s=Serializer(current_app.config['SECRET_KEY'])
+        try:
+            data=s.loads(token)
+        except:
+            return None
+        return User.query.get(data['id'])
+
+
+
     @staticmethod
     def generate_fake(count=100):
         from sqlalchemy.exc import IntegrityError
@@ -159,6 +214,19 @@ class User(UserMixin,db.Model):
                 db.session.commit()
             except IntegrityError:
                 db.session.rollback()
+
+    def to_json(self):
+        json_user = {
+            'url': url_for('api.get_user', id=self.id),
+            'username': self.username,
+            'merber_since': self.merber_since,
+            'last_seen': self.last_seen,
+            'posts_url': url_for('api.get_user_posts', id=self.id),
+            'followed_posts_url': url_for('api.get_user_followed_posts',
+                                          id=self.id),
+            'post_count': self.posts.count()
+        }
+        return json_user
 
     def __repr__(self):
         return self.username
@@ -181,10 +249,30 @@ class Post(db.Model):
     content=db.Column(db.Text())
 
     publish_date=db.Column(db.DateTime(),index=True,default =datetime.utcnow)
+    body_html=db.Column(db.Text)
     comments=db.relationship('Comment',backref='post',lazy='dynamic')
     user_id=db.Column(db.Integer(),db.ForeignKey('user.id'))
     tags=db.relationship('Tag',secondary=tags,backref=db.backref('posts',lazy='dynamic'))
 
+    def to_json(self):
+        json_post = {
+            'url': url_for('api.get_post', id=self.id),
+            'body': self.content,
+            'body_html': self.body_html,
+            'timestamp': self.publish_date,
+            'author_url': url_for('api.get_user', id=self.user_id),
+            'comments_url': url_for('api.get_post_comments', id=self.id),
+            'comment_count': self.comments.count()
+        }
+
+        return json_post
+
+    @staticmethod
+    def from_json(json_post):
+        body=json_post.get('body')
+        if body is None or body=='':
+            raise ValidationError('post does not have a body')
+        return Post(body=body)
     @staticmethod
     def generate_fake(count=100):
         from sqlalchemy.exc import IntegrityError
@@ -202,20 +290,49 @@ class Post(db.Model):
             db.session.add(p)
             db.session.commit()
 
+    @staticmethod
+    def on_changed_body(target,value,oldvalue,initator):
+        allowed_tags =['a','abbr','acronym','b','blockquote','code','em','li','i','ol','pre','strong','ul','h1',
+                       'h2','h3','h4','p']
+        target.body_html =bleach.linkify(bleach.clean(markdown(value,output_format='html'),tags=allowed_tags,strip=True))
+
     def __repr__(self):
+
         return self.title
+db.event.listen(Post.content,'set',Post.on_changed_body)
+
 class Comment(db.Model):
     id=db.Column(db.Integer(),primary_key=True)
-    name=db.Column(db.String(255))
+    body_html=db.Column(db.Text)
     text=db.Column(db.Text())
-    date=db.Column(db.DateTime())
+    date=db.Column(db.DateTime(),index=True,default=datetime.utcnow())
+    disable=db.Column(db.Boolean)
     post_id=db.Column(db.Integer(),db.ForeignKey('post.id'))
+    user_id=db.Column(db.Integer(),db.ForeignKey('user.id'))
+    def to_json(self):
+        json_comment = {
+            'url': url_for('api.get_comment', id=self.id),
+            'post_url': url_for('api.get_post', id=self.post_id),
+            'body': self.body,
+            'body_html': self.body_html,
+            'timestamp': self.timestamp,
+            'author_url': url_for('api.get_user', id=self.user_id),
+        }
+        return json_comment
+
+    @staticmethod
+    def on_changed_body(target, value, oldvalue, initator):
+        allowed_tags = ['a', 'abbr', 'acronym', 'b', 'blockquote', 'code', 'em', 'li', 'i', 'ol', 'pre', 'strong', 'ul',
+                        'h1',
+                        'h2', 'h3', 'h4', 'p']
+        target.body_html = bleach.linkify(
+            bleach.clean(markdown(value, output_format='html'), tags=allowed_tags, strip=True))
 
     def __repr__(self):
         return self.text[:15]
 
 
-
+db.event.listen(Comment.text,'set',Comment.on_changed_body)
 class Tag(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     title = db.Column(db.String(255))
@@ -223,4 +340,10 @@ class Tag(db.Model):
         self.title=title
     def __repr__(self):
         return self.title
+
+
+
+
+
+
 

@@ -33,7 +33,27 @@ Flasky
             Menber since {{moment(user.merber_since).format('L')}}.
             Last seen {{moment(user.last_seen).fromNow()}}
         </p>
-        {% if current_user.is_administrator()%}
+        <div class="row">
+    {% if current_user.can(Permission.FOLLOW) and current_user !=user%}
+    {% if not current_user.is_following(user)%}
+    <a href="{{url_for('main.follow',username=user.username)}}" class="btn btn-primary">
+        Follow
+    </a>
+    {% else%}
+    <a href="{{url_for('main.unfollow',username=user.username)}}" class="btn btn-primary">Unfollow</a>
+    {% endif %}
+    {% endif %}
+    <a href="{{url_for('main.followers',username=user.username)}}">
+        Followers:<span class="badge">{{user.followers.count()}}</span>
+    </a>
+    <a href="{{url_for('main.followed_by',username=user.username)}}">
+        Following:<span class="badge">{{user.followed.count()}}</span>
+    </a>
+    {% if current_user.is_authenticated and user !=current_user and user.is_following(current_user)%}
+    |<span class="label label-default">Follows you</span>
+    {% endif %}
+
+             {% if current_user.is_administrator()%}
     <a href="{{url_for('main.edit_profile_admin',id=user.id)}}" class="btn btn-danger">
         Edit Profile [Admin]
     </a>
@@ -45,6 +65,8 @@ Flasky
         </a>
         {%endif%}
         {%endif%}
+</div>
+
     </div>
 
 </div>
@@ -53,39 +75,15 @@ Flasky
     <hr>
     {% include '_post.html'%}
 </div>
+
+
 {% endblock%}
+
+
 {%block footer%}
 
 {% import 'macro.html' as s %}
-<div class="row">
-    <div class="col-lg-4 col-lg-offset-4">
-        <ul class="pagination">
-    <li>
-        <a href="{{url_for('main.user',username=user.username,page=posts.prev().page)}}" aria-label="Previous">
-            <span aria-hidden="true">&laquo;</span>
-        </a>
-    </li>
-    {%for page in posts.iter_pages() %}
-    {%if page %}
-    {% if page != posts.page%}
-    <li>
-        <a href="{{url_for('main.user',username=user.username,page=page) }}">
-            {{page}}
-        </a>
-    </li>
-    {% else %}
-    <li><a href="">{{page}}</a></li>
-    {% endif %}
-    {% else %}
-    <li><a href="">....</a></li>
-    {% endif %}
-    {% endfor%}
-    <li>
-        <a href="{{url_for('main.user',username=user.username,page=posts.next().page)}}" aria-label="Next">
-            <span aria-hidden="true">&raquo;</span>
-        </a>
-    </li>
-</ul>
+{{ s.render_pagination(posts,'main.user', username=user.username)}}
         {{moment.include_moment()}}
     </div>
 </div>
