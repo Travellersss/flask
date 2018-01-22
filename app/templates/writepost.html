@@ -1,0 +1,15 @@
+{% extends 'base.html'%}
+{% import 'bootstrap/wtf.html' as wtf %}
+{% block body%}
+<div class="row">
+    <div class="col-lg-9 ">
+        {% if current_user.can(Permission.WRITE_ARTICLES)%}
+        {{ wtf.quick_form(form)}}
+        {% endif%}
+    </div>
+</div>
+{% endblock%}
+{% block scripts%}
+{{ moment.include_moment()}}
+{{pagedown.include_pagedown()}}
+{% endblock%}

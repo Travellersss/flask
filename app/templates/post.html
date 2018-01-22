@@ -27,14 +27,19 @@
                 {% endif %}
             </div>
             <div class="row" style="float:right;">
+
+                <a href="{{url_for('main.store',post_id=post.id)}}" {% if current_user==post.user or current_user  in post.storybyuser%} class="btn btn-default disabled" {% else%} class='btn btn-primary' {% endif%}aria-hidden="false
+">
+                    <span  class="glyphicon glyphicon-bookmark">收藏</span>
+                </a>
                 {% if current_user==post.user %}
-                <a href="{{url_for('main.edit',id=post.id)}}">
-                    <span class="label label-primary">Edit</span>
+                <a href="{{url_for('main.edit',id=post.id)}}" class="btn btn-primary">
+                    <span class="glyphicon glyphicon-pencil">Edit</span>
                 </a>
 
                 {% elif current_user.is_administrator()%}
-                <a href="{{url_for('main.edit',id=post.id)}}">
-                    <span class="label label-danger">Edit [ADMIN]</span>
+                <a href="{{url_for('main.edit',id=post.id)}}" class="btn btn-danger">
+                    <span class="glyphicon glyphicon-pencil">Edit [ADMIN]</span>
                 </a>
                 {% endif %}
             </div>

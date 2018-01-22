@@ -6,6 +6,9 @@ from  config import DecConfig
 from flask_bootstrap import Bootstrap
 from flask_login import LoginManager
 from flask_pagedown import PageDown
+from flask_msearch import Search
+from jieba.analyse import ChineseAnalyzer
+
 
 login_manager = LoginManager()
 login_manager.session_protection = 'strong'
@@ -16,6 +19,8 @@ mail=Mail()
 moment = Moment()
 bootsrap = Bootstrap()
 db = SQLAlchemy()
+search = Search(db=db,analyzer=ChineseAnalyzer())
+
 pagedown = PageDown()
 
 def create_app():
@@ -25,8 +30,11 @@ def create_app():
     login_manager.init_app(app)
     mail.init_app(app)
     moment.init_app(app)
+    search.init_app(app)
     pagedown.init_app(app)
+
     db.init_app(app)
+
 
 
     from .main import main as main_blueprint

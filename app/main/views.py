@@ -1,5 +1,5 @@
 from flask import render_template,session,url_for,redirect,flash
-from ..models import User,Post,Comment,Tag,tags
+from ..models import User,Post,Comment,Tag,tags,Message
 from . import main
 from .. import db
 from .forms import UserForm,CommentForm
@@ -24,6 +24,8 @@ def siderbar_data():
 @main.route('/post/<int:post_id>',methods=['GET','POST'])
 def post(post_id):
     form = CommentForm()
+    post = Post.query.get_or_404(post_id)
+    user=post.user
     if form.validate_on_submit():
         new_comment = Comment()
         new_comment.user=current_user
@@ -31,11 +33,14 @@ def post(post_id):
         new_comment.text=form.text.data
         new_comment.post_id=post_id
         new_comment.date = datetime.datetime.now()
-        db.session.add(new_comment)
+        s='{0}对您的文章{1}发表了评论:{2}'.format(current_user.username,post.title,new_comment.text)
+        message = Message(user=user, msg=s, comment_username=current_user.username, tag='comment',
+                          comment_body=new_comment.text,post_title=post.title,post_id=post.id)
+        db.session.add_all([new_comment,message])
         db.session.commit()
         return redirect(url_for('main.post',post_id=post_id))
 
-    post=Post.query.get_or_404(post_id)
+
     tags=post.tags
     comments=post.comments.order_by(Comment.date.desc()).all()
     recent,top_tags=siderbar_data()
@@ -158,7 +163,7 @@ def index(page=1):
         db.session.add(post)
         db.session.commit()
         return redirect(url_for('main.index',page=1))
-    posts=pagination
+    posts=pagination.items
     recent, top_tags = siderbar_data()
     return render_template('home.html',form=form,posts=posts,recent=recent,top_tags=top_tags,pagination=pagination,show_followed=show_followed)
 
@@ -194,7 +199,9 @@ def follow(username):
         flash('你已经关注过他了')
         return redirect(url_for('main.user',username=username))
     current_user.follow(user)
-    db.session.add(current_user)
+    msg='关注了你'
+    message=Message(user=user,msg=msg,comment_username=current_user.username)
+    db.session.add_all([current_user,message])
     db.session.commit()
     flash('你已经关注他了')
     return redirect(url_for('main.user',username=username))
@@ -273,3 +280,58 @@ def recover_comment(post_id,id):
     db.session.add(comment)
     db.session.commit()
     return redirect(url_for('main.post',post_id=post_id))
+
+@login_required
+@main.route('/write_post/',methods=['POST','GET'])
+def writePost():
+    form=PostForm()
+    if form.validate_on_submit():
+        post=Post()
+        post.title=form.title.data
+        post.content=form.body.data
+        db.session.add(post)
+        db.session.commit()
+        return redirect(url_for('.index'))
+    return render_template('writepost.html',form=form)
+
+@main.route('/store/<int:post_id>')
+def store(post_id):
+    if current_user.is_authenticated:
+        post=Post.query.filter_by(id=post_id).first()
+        post.storybyuser.append(current_user)
+        flash('你已经收藏了此文章，可在我的收藏里面找打它！')
+        db.session.add(post)
+        db.session.commit()
+        return redirect(url_for('main.post',post_id=post_id))
+    return redirect(url_for('auto.login'))
+
+
+@login_required
+@main.route('/mystore')
+def mystore():
+    posts=current_user.storeposts.all()
+    return render_template('mystore.html',posts=posts)
+
+@login_required
+@main.route('/messages')
+def mymessage():
+
+    messages=Message.query.filter_by(user=current_user,status=True).order_by(Message.timestamp).all()
+    current_user.messages.update({'status':False})
+    db.session.commit()
+    return render_template('messages.html',messages=messages)
+@login_required
+@main.route('/oldmessages')
+def show_read_message():
+    messages=Message.query.filter_by(user=current_user,status=False).order_by(Message.timestamp).all()
+    return render_template('messages.html',messages=messages)
+
+
+@main.route('/search')
+def search():
+    keyword=request.args.get('search')
+
+    posts = Post.query.msearch(keyword, fields=['title','content'], limit=20).all()
+    print(posts)
+    return render_template('searchpost.html',posts=posts)
+

@@ -1,0 +1,29 @@
+{% extends 'base.html'%}
+{% block title%}
+我的消息
+{% endblock%}
+{% block body%}
+<div class="row" style="margin-top:20px;">
+    <ul class="nav nav-tabs">
+  <li role="presentation" class="active"><a href="{{url_for('main.mymessage')}}">未读</a></li>
+  <li role="presentation" ><a href="{{url_for('main.show_read_message')}}">已读</a></li>
+
+</ul>
+</div>
+<ul>
+    {% for msg in messages%}
+    {% if msg.tag=='comment'%}
+    <li>
+        <a href="{{url_for('main.user',username=msg.comment_username)}}">{{msg.comment_username}}</a>
+        对您的文章：《<a href="{{url_for('main.post',post_id=msg.post_id)}}"><b>{{msg.post_title}}</b></a>》做出了评价：
+        <p>{{msg.comment_body}}</p>
+    </li>
+    {% else%}
+    <li>
+        <a href="{{url_for('main.user',username=msg.comment_username)}}">{{msg.comment_username}}</a>关注了您！
+    </li>
+    {% endif %}
+{% endfor %}
+</ul>
+
+{% endblock%}

@@ -101,3 +101,6 @@ def comfirmpwd(token):
             db.session.commit()
             return redirect(url_for('auto.login'))
     return render_template('auto/resetpwd.html',form=form)
+
+
+

@@ -74,6 +74,7 @@ class User(UserMixin,db.Model):
     role_id = db.Column(db.Integer,db.ForeignKey('role.id'))
     posts=db.relationship('Post',backref='user',lazy='dynamic')
     comments=db.relationship('Comment',backref='user',lazy='dynamic')
+    messages=db.relationship('Message',backref='user',lazy='dynamic')
     followed=db.relationship('Follow',foreign_keys=[Follow.follower_id],
                              backref=db.backref('follower',lazy='joined'),
                              lazy='dynamic',
@@ -238,12 +239,19 @@ class AnonymousUser(AnonymousUserMixin):
     def is_administrator(self):
         return False
 login_manager.anonymous_user = AnonymousUser
+
 tags=db.Table('post_tags',
               db.Column('post_id',db.Integer(),db.ForeignKey('post.id')),
               db.Column('tag_id',db.Integer(),db.ForeignKey('tag.id'))
               )
+store=db.Table('user_posts',
+               db.Column('user_id',db.Integer(),db.ForeignKey('user.id')),
+               db.Column('post_id',db.Integer(),db.ForeignKey('post.id')))
+
+
 
 class Post(db.Model):
+    __searchable__ = ['title', 'content']
     id=db.Column(db.Integer(),primary_key=True)
     title = db.Column(db.String(255))
     content=db.Column(db.Text())
@@ -252,6 +260,7 @@ class Post(db.Model):
     body_html=db.Column(db.Text)
     comments=db.relationship('Comment',backref='post',lazy='dynamic')
     user_id=db.Column(db.Integer(),db.ForeignKey('user.id'))
+    storybyuser=db.relationship('User',secondary=store,backref=db.backref('storeposts',lazy='dynamic'))
     tags=db.relationship('Tag',secondary=tags,backref=db.backref('posts',lazy='dynamic'))
 
     def to_json(self):
@@ -299,7 +308,6 @@ class Post(db.Model):
     def __repr__(self):
 
         return self.title
-db.event.listen(Post.content,'set',Post.on_changed_body)
 
 class Comment(db.Model):
     id=db.Column(db.Integer(),primary_key=True)
@@ -341,6 +349,20 @@ class Tag(db.Model):
     def __repr__(self):
         return self.title
 
+
+class Message(db.Model):
+    id=db.Column(db.Integer(),primary_key=True)
+    status=db.Column(db.Integer(),default=True)
+    timestamp=db.Column(db.DateTime(),default=datetime.utcnow())
+    msg=db.Column(db.String(255))
+    tag=db.Column(db.String(255))
+    comment_username=db.Column(db.String(255))
+    comment_body=db.Column(db.String(255))
+    post_title=db.Column(db.String(255))
+    post_id=db.Column(db.String(255))
+    user_id=db.Column(db.Integer(),db.ForeignKey('user.id'))
+    def __repr__(self):
+        return self.msg
 
 
 
