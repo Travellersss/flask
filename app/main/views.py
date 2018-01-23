@@ -9,6 +9,7 @@ from sqlalchemy import func
 from flask import abort
 from flask_login import login_required,current_user
 import json
+from sqlalchemy.sql.expression import not_,or_
 
 def siderbar_data():
     recent=Post.query.order_by(Post.publish_date.desc()).limit(5).all()
@@ -330,7 +331,10 @@ def show_read_message():
 def search():
     keyword=request.args.get('search')
 
+
     posts = Post.query.msearch(keyword, fields=['title','content'], limit=20).all()
+    if len(posts)==0:
+        posts=Post.query.filter(or_(Post.title.contains(keyword),Post.content.contains(keyword))).limit(20).all()
     # posts = search.whoosh_search(Post, query=keyword, fields=['title','content'], limit=20)
     return render_template('searchpost.html',posts=posts)
 
