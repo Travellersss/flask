@@ -1,99 +1,29 @@
-#coding=utf-8
-from flask import Flask,render_template
-from config import DecConfig
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func
+from flask import Flask, render_template
+from flask_socketio import SocketIO, emit
 
+app = Flask(__name__)
+app.debug = True
+app.config['SECRET_KEY'] = 'windroc-nwpc-project'
 
-app=Flask(__name__)
-app.config.from_object(DecConfig)
-db=SQLAlchemy(app)
+socketio = SocketIO(app)
 
-class User(db.Model):
-    id=db.Column(db.Integer(),primary_key=True)
-    username=db.Column(db.String(255))
-    password=db.Column(db.String(255))
-    posts=db.relationship('Post',backref='user',lazy='dynamic')
-    def __init__(self, username):
-        self.username= username
-    def __repr__(self):
-        return self.username
-
-tags=db.Table('post_tags',
-              db.Column('post_id',db.Integer(),db.ForeignKey('post.id')),
-              db.Column('tag_id',db.Integer(),db.ForeignKey('tag.id'))
-              )
-
-class Post(db.Model):
-    id=db.Column(db.Integer(),primary_key=True)
-    content=db.Column(db.Text())
-    title=db.Column(db.String(255))
-    publish_date=db.Column(db.DateTime())
-    comments=db.relationship('Comment',backref='post',lazy='dynamic')
-    user_id=db.Column(db.Integer(),db.ForeignKey('user.id'))
-    tags=db.relationship('Tag',secondary=tags,backref=db.backref('posts',lazy='dynamic'))
-    def __init__(self,title):
-        self.title=title
-    def __repr__(self):
-        return self.title
-class Comment(db.Model):
-    id=db.Column(db.Integer(),primary_key=True)
-    name=db.Column(db.String(255))
-    text=db.Column(db.Text())
-    date=db.Column(db.DateTime())
-    post_id=db.Column(db.Integer(),db.ForeignKey('post.id'))
-
-    def __repr__(self):
-        return self.text[:15]
-
-
-
-class Tag(db.Model):
-    id = db.Column(db.Integer(), primary_key=True)
-    title = db.Column(db.String(255))
-    def __init__(self,title):
-        self.title=title
-    def __repr__(self):
-        return self.title
-
-
-def siderbar_data():
-    recent=Post.query.order_by(Post.publish_date.desc()).limit(5).all()
-    top_tags=db.session.query(Tag,func.count(tags.c.post_id).label('total')).join(tags).group_by(Tag).order_by('total DESC').limit(5).all()
-    return recent , top_tags
 
 @app.route('/')
-@app.route('/<int:page>')
-def home(page=1):
-    posts=Post.query.order_by(Post.publish_date.desc()).paginate(page,10)
-    recent,top_tags=siderbar_data()
-    return render_template('home.html',posts=posts,recent=recent,top_tags=top_tags)
-
-@app.route('/post/<int:post_id>')
-def post(post_id):
-    post=Post.query.get_or_404(post_id)
-    tags=post.tags
-    comments=post.comments.order_by(Comments.data.desc()).all()
-    recent,top_tags=siderbar_data()
-
-    return render_template('post.html',post=post,tags=tags,comments=comments,recent=recent,top_tags=top_tags)
-
-@app.route('/tag/<string:tag_name>')
-def tag(tag_name):
-    tag=Tag.query.filter_by(title=tag_name).first_or_404()
-    posts=tag.posts.order_by(Post.publish_date.desc()).all()
-    recent,top_tags=siderbar_data()
-    return render_template('tag.html', posts=posts, tag=tag,  recent=recent, top_tags=top_tags)
+def get_index_page():
+    return render_template('base.html')
 
 
-
-@app.route('/user/<string:username>')
-def user(username):
-    user=User.query.filter_by(username=username).first_or_404()
-    posts=user.posts.order_by(Post.publish_date.desc()).all()
-    recent,top_tags=siderbar_data()
-    return render_template('user.html',user=user, posts=posts, recent=recent, top_tags=top_tags)
+@socketio.on('connect', namespace='/test')
+def test_connect():
+    emit('my response', {'data': 'Connected', 'count': 0})
 
 
-if __name__=='__main__':
-    app.run()
+@socketio.on('my event', namespace='/test')
+def test_message(message):
+    print(message)
+    emit('my response', {'data': message['data'], 'count': 2})
+
+
+if __name__ == "__main__":
+    socketio.run(app)
+

@@ -1,13 +1,14 @@
 from flask import render_template,session,url_for,redirect,flash
 from ..models import User,Post,Comment,Tag,tags,Message
 from . import main
-from .. import db
+from .. import db,socketio
+from flask_socketio import emit
 from .forms import UserForm,CommentForm
 import datetime
 from sqlalchemy import func
 from flask import abort
 from flask_login import login_required,current_user
-
+import json
 
 def siderbar_data():
     recent=Post.query.order_by(Post.publish_date.desc()).limit(5).all()
@@ -38,6 +39,8 @@ def post(post_id):
                           comment_body=new_comment.text,post_title=post.title,post_id=post.id)
         db.session.add_all([new_comment,message])
         db.session.commit()
+        messages=json.loads(str(Message.query.filter_by(status=True,user=user).count()))
+        socketio.emit('my response',messages, namespace='/test')
         return redirect(url_for('main.post',post_id=post_id))
 
 
@@ -88,7 +91,7 @@ def user(username,page=1):
         abort(404)
     posts = user.posts.order_by(Post.publish_date.desc()).paginate(1,10)
     posts=posts
-    return render_template('user.html',user = user ,posts=posts)
+    return render_template('user.html',user = user,posts=posts)
 
 from .forms import EditProfileForm
 
@@ -156,13 +159,10 @@ def index(page=1):
         query=current_user.followed_posts
     else:
         query=Post.query
+
     pagination=query.order_by(Post.publish_date.desc()).paginate(page,20,error_out=False)
 
-    if current_user.can(Permission.WRITE_ARTICLES) and form.validate_on_submit():
-        post =Post(title=form.title.data,content=form.body.data,user = current_user._get_current_object())
-        db.session.add(post)
-        db.session.commit()
-        return redirect(url_for('main.index',page=1))
+
     posts=pagination.items
     recent, top_tags = siderbar_data()
     return render_template('home.html',form=form,posts=posts,recent=recent,top_tags=top_tags,pagination=pagination,show_followed=show_followed)
@@ -326,12 +326,25 @@ def show_read_message():
     messages=Message.query.filter_by(user=current_user,status=False).order_by(Message.timestamp).all()
     return render_template('messages.html',messages=messages)
 
-
 @main.route('/search')
 def search():
     keyword=request.args.get('search')
 
     posts = Post.query.msearch(keyword, fields=['title','content'], limit=20).all()
-    print(posts)
+    # posts = search.whoosh_search(Post, query=keyword, fields=['title','content'], limit=20)
     return render_template('searchpost.html',posts=posts)
+
+
+
+@socketio.on('connect', namespace='/test')
+def test_connect():
+    emit('my response', {'data': 'Connected', 'count': 0})
+
+
+@socketio.on('my event', namespace='/test')
+def test_message(message):
+    emit('my response', {'data': message['data'], 'count': 2})
+
+
+
 

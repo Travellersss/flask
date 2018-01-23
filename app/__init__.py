@@ -8,7 +8,7 @@ from flask_login import LoginManager
 from flask_pagedown import PageDown
 from flask_msearch import Search
 from jieba.analyse import ChineseAnalyzer
-
+from flask_socketio import SocketIO,emit
 
 login_manager = LoginManager()
 login_manager.session_protection = 'strong'
@@ -19,7 +19,9 @@ mail=Mail()
 moment = Moment()
 bootsrap = Bootstrap()
 db = SQLAlchemy()
+socketio=SocketIO()
 search = Search(db=db,analyzer=ChineseAnalyzer())
+
 
 pagedown = PageDown()
 
@@ -32,7 +34,7 @@ def create_app():
     moment.init_app(app)
     search.init_app(app)
     pagedown.init_app(app)
-
+    socketio.init_app(app)
     db.init_app(app)
 
 

@@ -33,3 +33,5 @@ class DecConfig(Config):
     MSEARCH_ENABLE = True
     # WHOOSH_BASE = 'mysql+pymysql://root:root@127.0.0.1:3306/flask'
     # MAX_SEARCH_RESULTS = 50
+    WHOOSH_BASE = 'whoosh_index'
+    WHOOSH_ENABLE = True
