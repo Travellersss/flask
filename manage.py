@@ -1,13 +1,11 @@
 from flask_script import Manager,Server
 from flask_migrate import Migrate,MigrateCommand
 from app.models import User,Post,Tag,Comment,Role,Message
-
-
 import os
 from app import create_app,db,mail,search,socketio
 
-app = create_app()
 
+app = create_app()
 migrate=Migrate(app,db)
 manager=Manager(app)
 manager.add_command('server',Server)
