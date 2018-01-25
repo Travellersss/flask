@@ -2,7 +2,25 @@
 {% import 'bootstrap/wtf.html' as wtf%}
 {% block title%}Home{% endblock%}
 {%block body%}
+<div class="row">
+    <div class="col-lg-3">
 
+        <ul class="list-group">
+            <li class="list-group-item"><h4>博客分类</h4></li>
+            {% for tag in tags%}
+
+            <li class="list-group-item tags">
+                {{tag}}
+                <ul class={{tag}} style="display:none;list-style-type:none;">
+
+                </ul>
+            </li>
+
+            {% endfor%}
+        </ul>
+    </div>
+
+</div>
 
 
 <div class="row" style="margin-top:20px;">
@@ -84,4 +102,30 @@
 {% block scripts%}
 <!--<link rel="stylesheet" href="{{url_for('static',filename='css/static.css')}}">-->
 <!--<script src="{{url_for('static',filename='js/static.js')}}"></script>-->
+<script type="text/javascript">
+        $(function(){
+             $('.tags').each(function(){
+             var s=$(this).text().trim();
+             var tag='.'+s;
+             $.get('/tags/'+s,function(dic){
+                console.log(tag)
+             pro=$(tag);
+            $.each(dic.data,function(index,item){
+                pro.append('<li><a href="/tag/'+item['title']+'">'+item['title']+'</a></li>');
+            });
+            });
+             });
+
+            $('.tags').hover(function(){
+
+            $(this).find('ul').css('display','block');
+           },
+           function(){
+
+           $(this).find('ul').css('display','none');
+           });
+            });
+
+
+</script>
 {% endblock%}

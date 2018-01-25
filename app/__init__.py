@@ -9,12 +9,15 @@ from flask_pagedown import PageDown
 from flask_msearch import Search
 from jieba.analyse import ChineseAnalyzer
 from flask_socketio import SocketIO,emit
+from flask_cache import Cache
+from flask_celery import Celery
 
 login_manager = LoginManager()
 login_manager.session_protection = 'strong'
 login_manager.login_view = 'auto.login'
 
-
+cache=Cache()
+celery=Celery()
 mail=Mail()
 moment = Moment()
 bootsrap = Bootstrap()
@@ -35,6 +38,8 @@ def create_app():
     search.init_app(app)
     pagedown.init_app(app)
     socketio.init_app(app)
+    cache.init_app(app)
+    celery.init_app(app)
     db.init_app(app)
 
 

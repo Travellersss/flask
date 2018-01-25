@@ -1,6 +1,7 @@
 from flask import render_template,session,url_for,redirect,flash
 from ..models import User,Post,Comment,Tag,tags,Message
 from . import main
+from ..decorators import permission_required
 from .. import db,socketio
 from flask_socketio import emit
 from .forms import UserForm,CommentForm
@@ -10,19 +11,23 @@ from flask import abort
 from flask_login import login_required,current_user
 import json
 from sqlalchemy.sql.expression import not_,or_
+from .forms import PostForm
+from app import cache
+from flask import jsonify
+from ..decorators import admin_required
+from .forms import EditProfileAdminForm
+from ..models import Role
+from flask_login import login_required
+from ..models import Permission
+
+
 
 def siderbar_data():
     recent=Post.query.order_by(Post.publish_date.desc()).limit(5).all()
     top_tags=db.session.query(Tag,func.count(tags.c.post_id).label('total')).join(tags).group_by(Tag).order_by('total DESC').limit(5).all()
     return recent , top_tags
 
-# @main.route('/')
-# @main.route('/<int:page>')
-# def home(page=1):
-#     posts=Post.query.order_by(Post.publish_date.desc()).paginate(page,10)
-#     recent,top_tags=siderbar_data()
-#     return render_template('home.html',posts=posts,recent=recent,top_tags=top_tags)
-
+@cache.memoize(60)
 @main.route('/post/<int:post_id>',methods=['GET','POST'])
 def post(post_id):
     form = CommentForm()
@@ -51,12 +56,20 @@ def post(post_id):
 
     return render_template('post.html',post=post,tags=tags,comments=comments,form = form ,recent=recent,top_tags=top_tags)
 
-@main.route('/tag/<string:tag_name>')
-def tag(tag_name):
-    tag=Tag.query.filter_by(title=tag_name).first_or_404()
-    posts=tag.posts.order_by(Post.publish_date.desc()).all()
-    recent,top_tags=siderbar_data()
-    return render_template('tag.html', posts=posts, tag=tag,  recent=recent, top_tags=top_tags)
+@cache.memoize(60)
+@main.route('/tags/<tag_title>')
+def tag(tag_title):
+    if tag_title.isdigit():
+        tag=Tag.query.filter_by(id=tag_title).first()
+    else:
+        tag=Tag.query.filter_by(title=tag_title).first()
+    # posts=tag.posts.order_by(Post.publish_date.desc()).all()
+    # recent,top_tags=siderbar_data()
+    tags=Tag.query.filter_by(parent_id=tag.id).all()
+    list=[]
+    for t in tags:
+        list.append({'id':t.id,'title':t.title})
+    return jsonify({'data':list})
 
 
 
@@ -114,11 +127,6 @@ def edit_profile():
     form.about_me.data=current_user.about_me
     return render_template('edit_profile.html',form=form)
 
-from ..decorators import admin_required
-from .forms import EditProfileAdminForm
-from ..models import Role
-from flask_login import login_required
-from ..models import Permission
 
 @main.route('/edit-profile/<int:id>',methods=["GET","POST"])
 @login_required
@@ -147,10 +155,16 @@ def edit_profile_admin(id):
     form.about_me.data=user.about_me
     return render_template('edit_profile.html',form=form,user=user)
 
-from .forms import PostForm
-from ..models import Permission
+def make_cache_key(*args,**kwargs):
+    path=request.path
+    args=str(hash(frozenset(request.args.items())))
+    cookies=request.cookies.get('show_followed')
+    return (path+args+cookies).encode('utf-8')
+
+
 @main.route('/',methods=["POST","GET"])
 @main.route('/<int:page>',methods=["POST","GET"])
+@cache.cached(timeout=600,key_prefix=make_cache_key)
 def index(page=1):
     form = PostForm()
     show_followed=False
@@ -163,10 +177,11 @@ def index(page=1):
 
     pagination=query.order_by(Post.publish_date.desc()).paginate(page,20,error_out=False)
 
+    tags=Tag.query.filter_by(parent_id=None).all()
 
     posts=pagination.items
     recent, top_tags = siderbar_data()
-    return render_template('home.html',form=form,posts=posts,recent=recent,top_tags=top_tags,pagination=pagination,show_followed=show_followed)
+    return render_template('home.html',tags=tags,form=form,posts=posts,recent=recent,top_tags=top_tags,pagination=pagination,show_followed=show_followed)
 
 
 @main.route('/edit/<int:id>',methods=["POST",'GET'])
@@ -187,7 +202,7 @@ def edit(id):
     form.body.data=post.content
     return render_template('edit_post.html',form=form)
 
-from ..decorators import permission_required
+
 @main.route('/follow/<username>')
 @login_required
 @permission_required(Permission.FOLLOW)
@@ -287,12 +302,17 @@ def recover_comment(post_id,id):
 def writePost():
     form=PostForm()
     if form.validate_on_submit():
-        post=Post()
-        post.title=form.title.data
-        post.content=form.body.data
+        post=Post(title=form.title.data,content=form.body.data,user=current_user)
         db.session.add(post)
+        db.session.flush()
+        db.session.commit()
+        post=Post.query.filter_by(title=form.title.data).first()
+        post.tags.append(Tag.query.get(form.lasttag.data))
+        db.session.add(post)
+        db.session.flush()
         db.session.commit()
         return redirect(url_for('.index'))
+
     return render_template('writepost.html',form=form)
 
 @main.route('/store/<int:post_id>')
@@ -340,15 +360,25 @@ def search():
 
 
 
-@socketio.on('connect', namespace='/test')
-def test_connect():
-    emit('my response', {'data': 'Connected', 'count': 0})
+# @socketio.on('connect', namespace='/test')
+# def test_connect():
+#     emit('my response', {'data': 'Connected', 'count': 0})
+#
+#
+# @socketio.on('my event', namespace='/test')
+# def test_message(message):
+#     emit('my response', {'data': message['data'], 'count': 2})
 
 
-@socketio.on('my event', namespace='/test')
-def test_message(message):
-    emit('my response', {'data': message['data'], 'count': 2})
-
-
+@cache.cached(timeout=60,key_prefix=make_cache_key)
+@main.route('/tag/<tag_title>')
+@main.route('/tag/<tag_title>/<page>')
+def handletag(tag_title,page=1):
+    tag=Tag.query.filter_by(title=tag_title).first()
+    print(tag.title)
+    print('+'*100)
+    posts=tag.posts.order_by(Post.publish_date.desc()).paginate(page,20,error_out=False)
+    print(posts)
+    return render_template('tagposts.html',posts=posts,tag=tag)
 
 

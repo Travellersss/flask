@@ -35,3 +35,10 @@ class DecConfig(Config):
     # MAX_SEARCH_RESULTS = 50
     WHOOSH_BASE = 'whoosh_index'
     WHOOSH_ENABLE = True
+
+    # 缓存设置
+    CACHE_TYPE='simple'
+
+    #Celery配置
+    CELERY_BROKER_URL='amqp://guest:guest@localhost:5672//'
+    CELERY_BACKEND='amqp://guest:guest@localhost:5672//'

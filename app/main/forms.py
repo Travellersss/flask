@@ -1,10 +1,11 @@
 #coding=utf-8
 
 from flask_wtf import Form
-from wtforms import StringField,TextAreaField,PasswordField,SubmitField
+from wtforms import StringField,TextAreaField,PasswordField,SubmitField,SelectField
 from wtforms.validators import DataRequired,Length,Email
 from flask_mail import Mail
-
+from ..models import Tag
+from sqlalchemy.sql.expression import not_
 
 class UserForm(Form):
     username = StringField('Please put your email',validators = [DataRequired(),Email()])
@@ -53,5 +54,12 @@ class EditProfileAdminForm(Form):
 from flask_pagedown.fields import PageDownField
 class PostForm(Form):
     title = StringField('Title',validators = [Required(),Length(1,64)])
-    body = PageDownField('请输入你的内容！',validators=[Required()])
+
+    tag=SelectField('请选择一级博文标签！',validators=[Required()],coerce=int)
+    lasttag=SelectField('请选择二级博文标签！',validators=[Required()],coerce=int)
+    body = PageDownField('请输入你的内容！', validators=[Required()])
+    def __init__(self,*args,**kwargs):
+        super(PostForm,self).__init__(*args,**kwargs)
+        self.tag.choices=[(tag.id,tag.title) for tag in Tag.query.filter(Tag.parent_id==None).all()]
+        self.lasttag.choices=[(tag.id,tag.title) for tag in Tag.query.all()]
     submit= SubmitField('Submit')

@@ -8,6 +8,7 @@ from datetime import datetime
 from markdown import markdown
 import bleach
 from app.exceptions import ValidationError
+from sqlalchemy.sql.expression import not_,or_
 
 
 @login_manager.user_loader
@@ -305,6 +306,19 @@ class Post(db.Model):
                        'h2','h3','h4','p']
         target.body_html =bleach.linkify(bleach.clean(markdown(value,output_format='html'),tags=allowed_tags,strip=True))
 
+
+    @staticmethod
+    def createtag():
+        tags=Tag.query.all()
+        posts=Post.query.all()
+        for post in posts:
+            import random
+            tag=random.choice(tags)
+            if tag.parent_id!=None:
+
+                post.tags.append(tag)
+                db.session.add(post)
+                db.session.commit()
     def __repr__(self):
 
         return self.title
@@ -344,6 +358,26 @@ db.event.listen(Comment.text,'set',Comment.on_changed_body)
 class Tag(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     title = db.Column(db.String(255))
+
+    parent_id=db.Column(db.Integer(),db.ForeignKey('tag.id'))
+
+    @staticmethod
+    def createTag():
+        tags={'人工智能':['机器学习','深度学习','计算机视觉','语音识别','NLP','其他'],
+              'web前端':['HTML','CSS','JavaScript','JQuery','BootStrap','AngularJS','Vue','其他'],
+              '云计算/大数据':['Hadoop','Spark','OpenStark','大数据','云平台','其他'],
+              '其他':['数据库','操作系统','手机开发','其他']
+              }
+        for parent,childrens in tags.items():
+            p=Tag(title=parent)
+            db.session.add(p)
+            db.session.commit()
+            for children in childrens:
+                tag=Tag(title=children)
+                tag.parent_id=p.id
+                db.session.add(tag)
+                db.session.commit()
+
     def __init__(self,title):
         self.title=title
     def __repr__(self):
