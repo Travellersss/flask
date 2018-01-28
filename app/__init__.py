@@ -15,12 +15,12 @@ from flask_celery import Celery
 
 
 
-
+celery=Celery()
 login_manager = LoginManager()
 login_manager.session_protection = 'strong'
 login_manager.login_view = 'auto.login'
 
-celery = Celery()
+
 
 cache=Cache()
 mail=Mail()
@@ -34,7 +34,6 @@ pagedown = PageDown()
 def create_app():
     app = Flask(__name__)
     app.config.from_object(DecConfig)
-    celery.init_app(app)
     bootsrap.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
@@ -43,7 +42,7 @@ def create_app():
     pagedown.init_app(app)
     socketio.init_app(app)
     cache.init_app(app)
-
+    celery.init_app(app)
     db.init_app(app)
 
 

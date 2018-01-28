@@ -3,8 +3,9 @@ from app import create_app
 from celery import Celery
 
 
+
 def make_celery(app):
-    celery=Celery(app.import_name,broker=app.config['CELERY_BROKER_URL'],backend=app.config['CELERY_RESULT_BACKEND'])
+    celery=Celery(app.import_name,broker='redis://localhost:6379/0',backend='redis://localhost:6379/0')
     celery.conf.update(app.config)
     TaskBase =celery.Task
     class ContextTask(TaskBase):
@@ -20,3 +21,5 @@ def make_celery(app):
 
 flask_app=create_app()
 celery=make_celery(flask_app)
+
+

@@ -20,6 +20,7 @@ from ..models import Role
 from flask_login import login_required
 from ..models import Permission
 from .forms import EditProfileForm
+from ..tasks import remind
 
 
 def siderbar_data():
@@ -32,6 +33,8 @@ def siderbar_data():
 def post(post_id):
     form = CommentForm()
     post = Post.query.get_or_404(post_id)
+    post.clicknum+=1
+    db.session.add(post)
     user=post.user
     if form.validate_on_submit():
         new_comment = Comment()
@@ -46,7 +49,7 @@ def post(post_id):
         db.session.add_all([new_comment,message])
         db.session.commit()
         messages=json.loads(str(Message.query.filter_by(status=True,user=user).count()))
-        socketio.emit('my response',messages, namespace='/test')
+
         return redirect(url_for('main.post',post_id=post_id))
     tags=post.tags
     comments=post.comments.order_by(Comment.date.desc()).all()
@@ -157,13 +160,14 @@ def edit_profile_admin(id):
 def make_cache_key(*args,**kwargs):
     path=request.path
     args=str(hash(frozenset(request.args.items())))
-    cookies=request.cookies.get('show_followed')
+
+    cookies=request.cookies.get('show_followed','0')
     return (path+args+cookies).encode('utf-8')
 
 
 @main.route('/',methods=["POST","GET"])
 @main.route('/<int:page>',methods=["POST","GET"])
-@cache.cached(timeout=600,key_prefix=make_cache_key)
+# @cache.cached(timeout=600,key_prefix=make_cache_key)
 def index(page=1):
     form = PostForm()
     show_followed=False
@@ -176,9 +180,10 @@ def index(page=1):
         query=Post.query
     pagination=query.order_by(Post.publish_date.desc()).paginate(page,20,error_out=False)
     tags=Tag.query.filter_by(parent_id=None).all()
+    orders=Tag.query.filter(not_(Tag.parent_id==None)).all()
     posts=pagination.items
     recent, top_tags = siderbar_data()
-    return render_template('home.html',tags=tags,form=form,posts=posts,recent=recent,top_tags=top_tags,pagination=pagination,show_followed=show_followed)
+    return render_template('home.html',orders=orders,tags=tags,form=form,posts=posts,recent=recent,top_tags=top_tags,pagination=pagination,show_followed=show_followed)
 
 
 @main.route('/edit/<int:id>',methods=["POST",'GET'])
@@ -315,6 +320,7 @@ def writePost():
         db.session.add(post)
         db.session.flush()
         db.session.commit()
+        remind(post.id)
         return redirect(url_for('.index'))
 
     return render_template('writepost.html',form=form)
@@ -381,6 +387,7 @@ def search():
 @cache.cached(timeout=60,key_prefix=make_cache_key)
 @main.route('/tag/<tag_title>')
 @main.route('/tag/<tag_title>/<page>')
+
 def handletag(tag_title,page=1):
     tag=Tag.query.filter_by(title=tag_title).first()
     print(tag.title)
@@ -390,3 +397,47 @@ def handletag(tag_title,page=1):
     return render_template('tagposts.html',posts=posts,tag=tag)
 
 
+@login_required
+@main.route('/order',methods=['POST','GET'])
+def order():
+    tags=request.form.getlist('ordertags[]')
+    print('+'*100)
+    print(tags)
+    user=current_user
+    for tag in tags:
+        order=Tag.query.filter_by(title=tag).first()
+        if user.tags.filter_by(id=order.id).first()==None:
+            user.tags.append(order)
+
+            db.session.add(user)
+            db.session.flush()
+    db.session.commit()
+    status='订阅成功'
+    return  status
+
+@login_required
+@main.route('/removeorder',methods=['POST'])
+def removeorder():
+    removeorders=request.form.getlist('list[]')
+    user = current_user
+    print(removeorders)
+    for order in removeorders:
+        tag=Tag.query.filter_by(title=order).first()
+        print(tag.title)
+        # user.tags.filter_by(id=tag.id).first()
+        user.tags.remove(tag)
+        db.session.add(user)
+    db.session.commit()
+    return '订阅取消成功'
+
+@login_required
+@main.route('/getorder')
+def getorder():
+    user=current_user
+    tags=user.tags
+    list=[]
+    for tag in tags:
+        list.append(tag.title)
+    data={'alreadyordertags':list}
+
+    return jsonify(data)
