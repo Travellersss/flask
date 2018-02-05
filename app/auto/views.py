@@ -1,4 +1,5 @@
-from flask import render_template,redirect,flash,url_for,request
+import os
+from flask import render_template, redirect, flash, url_for, request, session
 from . import auto
 from flask_login import login_user,logout_user,login_required
 from ..models import User
@@ -6,6 +7,7 @@ from .forms import LoginForm,RegisterForm,ResetpwdForm,ResetForm
 from .. import db
 from ..email import send_email
 from flask_login import current_user
+from createcode import create_validate_code
 
 @auto.route('/login',methods=["POST","GET"])
 def login():
@@ -13,10 +15,44 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user is not None and user.verify_password(form.password.data):
-            login_user(user,form.remenber_me.data)
-            return redirect(request.args.get('next') or url_for('main.index'))
+            if 'code' in session and session.get('code',None)==form.verification_code.data.upper():
+                login_user(user,form.remenber_me.data)
+                old_img=session.get('img_url',None)
+                if old_img:
+                    os.remove('app/static/image/code/'+old_img)
+                session.pop('code')
+                session.pop('img_url')
+                return redirect(request.args.get('next') or url_for('main.index'))
+            old_img = session.get('img_url', None)
+            if old_img:
+                os.remove('app/static/image/code/' + old_img)
+            flash(session['code'])
+            img_url, strs = create_validate_code()
+            session['code'] = strs
+            session['img_url'] = img_url
+
+            flash('验证码错误，请重新输入！')
+            return render_template('auto/login.html', form=form, img_url=img_url)
         flash('密码或者用户名错误')
-    return render_template('auto/login.html',form =form)
+    old_img=session.get('img_url',None)
+    if old_img:
+        os.remove('app/static/image/code/'+old_img)
+    img_url,strs=create_validate_code()
+    session['code']=strs
+    session['img_url']=img_url
+    return render_template('auto/login.html',form =form,img_url=img_url)
+
+
+@auto.route('/createnewcode')
+def createnewcode():
+    old_img=session.get('img_url',None)
+    if old_img:
+        os.remove('app/static/image/code/'+old_img)
+    img_url,strs=create_validate_code()
+    session['code']=strs
+    session['img_url']=img_url
+    data=img_url
+    return data
 
 @auto.route('/logout')
 @login_required

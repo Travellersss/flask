@@ -8,6 +8,7 @@ class LoginForm(Form):
     email = StringField('Email',validators=[Required(),Length(1,64),Email()])
 
     password = PasswordField('密码',validators =[Required()])
+    verification_code=StringField('验证码',validators=[Required()])
     remenber_me = BooleanField('keep me logged in')
     submit = SubmitField('登陆')
 

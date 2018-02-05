@@ -1,5 +1,12 @@
-import os
+
 #coding=utf-8
+import datetime
+import os
+from celery.schedules import crontab
+
+
+
+
 class Config(object):
     @staticmethod
     def init_app(app):
@@ -20,7 +27,7 @@ class DecConfig(Config):
     MAIL_USE_TLS = False
     FLASKY_MAIL_SUBJECT_PREFIX='Flasky'
     FLASKY_MAIL_SENDER='15182620613@163.com'
-    FLASKY_ADMIN='15182620613@163.com '
+    FLASKY_ADMIN='15182620613@163.com'
 
     MSEARCH_INDEX_NAME = 'whoosh_index'
 
@@ -40,5 +47,17 @@ class DecConfig(Config):
     CACHE_TYPE='simple'
 
     #Celery配置
-    CELERY_BROKER_URL='amqp://guest:guest@localhost:5672//'
-    CELERY_BACKEND='amqp://guest:guest@localhost:5672//'
+    CELERY_BROKER_URL='redis://localhost:6379/0'
+    CELERY_RESULT_BACKEND='redis://localhost:6379/0'
+    CELERY_ACCEPT_CONTENT = ['pickle']
+    CELERY_IMPORTS = ("app.tasks",)
+    #Celery定时执行任务的配置,要使用此方法还需要另开一个窗口运行celery -A manage.celery beat
+    CELERYBEAT_SCHEDULE={
+        'sendemail-every-week':{
+            'task':'app.tasks.sendemail',
+            'schedule':crontab(day_of_week=6,hour='10')
+        },
+    }
+    #用户头像设置
+    UPLOAD_FOLDER = 'static/image/userimg/'
+    ALLOWED_EXTENSIONS = set(['pdf', 'png', 'jpg', 'jpeg', 'gif'])

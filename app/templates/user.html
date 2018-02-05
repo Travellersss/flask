@@ -7,7 +7,15 @@ Flasky
 {% block body %}
 <div class="row">
     <div class=" col-lg-4 col-lg-offset-2 ">
-        <img src="{{user.gravatar(size=256)}}" alt="userImg"class="img-rounded profile-thumbnail">
+
+        <img src="{{user.gravatar(size=220)}}" alt="userImg"class="img-rounded profile-thumbnail">
+
+
+
+            {% if current_user.is_administrator  %}
+            <div class="btn btn-primary">修改头像</div>
+            {% endif %}
+
     </div>
     <div class="col-lg-4">
         <h1>{{user.username}}</h1>

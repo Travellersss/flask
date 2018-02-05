@@ -12,20 +12,23 @@ from flask_socketio import SocketIO,emit
 from flask_cache import Cache
 from flask_celery import Celery
 
+
+
+
+celery=Celery()
 login_manager = LoginManager()
 login_manager.session_protection = 'strong'
 login_manager.login_view = 'auto.login'
 
+
+
 cache=Cache()
-celery=Celery()
 mail=Mail()
 moment = Moment()
 bootsrap = Bootstrap()
 db = SQLAlchemy()
 socketio=SocketIO()
 search = Search(db=db,analyzer=ChineseAnalyzer())
-
-
 pagedown = PageDown()
 
 def create_app():

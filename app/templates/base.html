@@ -58,7 +58,6 @@
 </form>
       <ul class="nav navbar-nav navbar-right">
           {% if current_user.is_authenticated%}
-        <!--<li><a href="#">Link</a></li>-->
 
         <li class="dropdown">
 
@@ -70,9 +69,11 @@
             <li><a href="{{url_for('main.writePost')}}">发布文章</a></li>
               <li><a href="{{url_for('main.mymessage')}}">我的消息{% if current_user.messages.filter_by(status=True).count() >0 %} <span class="badge">{{current_user.messages.filter_by(status=True).count()}}</span>{% endif %}</a></li>
               <li><a href="{{url_for('main.mystore')}}">我的收藏</a></li>
+              <li><a href='#' data-toggle="modal" data-target="#myorder" class="getorders">我的订阅</a></li>
             <li role="separator" class="divider"></li>
             <li><a href="{{url_for('auto.logout')}}">退出登录</a></li>
           </ul>
+            <li><a href="#" data-toggle="modal" data-target="#myModal">订阅</a></li>
         </li>
 
           {% else %}
@@ -82,7 +83,51 @@
             <li><a href="{{url_for('auto.login')}}" >登录</a></li>
           <li><a href="{{url_for('auto.register')}}">注册</a></li>
           {% endif %}
+            <!-- Large modal -->
+
       </ul>
+<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">订阅内容(订阅后每周定时发送你所订阅模块内容)</h4>
+      </div>
+      <div class="modal-body">
+       {% for order in orders %}
+          <button class="btn btn-default tag" style="border-radius:20px;margin-top:30px;">{{order}}</button>
+          {% endfor %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary submit" data-dismiss="modal">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+        <!--取消订阅-->
+        <div class="modal fade" id="myorder" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" >取消订阅(点击选中可取消订阅)</h4>
+      </div>
+      <div class="modal-body gettags">
+          {% if current_user.is_authenticated%}
+            {% for tag in current_user.tags.all()%}
+                <button class="btn btn-default removetags" style="border-radius:20px;margin-top:30px;">{{tag}}</button>
+            {% endfor %}
+          {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary removesubmit" data-dismiss="modal">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container-fluid -->
 </nav>
@@ -134,4 +179,49 @@
 
     {% endblock%}
 
+<script>
+    $(function(){
+        var tags=new Array();
+        var removetags=new Array();
+
+        $('.removetags').click(function(){
+            removetag=$(this).text().trim();
+            if(removetags.indexOf(removetag)>=0)
+            {
+                removetags.splice(removetags.indexOf(removetag),1);
+                $(this).removeClass('btn-info').addClass('btn-default');
+                }
+            else
+            {
+                removetags.push(removetag);
+                $(this).removeClass('btn-default').addClass('btn-info');
+                }
+        });
+        $('.tag').click(function(){
+            tag=$(this).text().trim();
+            if(tags.indexOf(tag)>=0)
+            {
+                tags.splice(tags.indexOf(tag),1);
+                $(this).removeClass('btn-info').addClass('btn-default');
+                }
+            else
+            {
+                tags.push(tag);
+                $(this).removeClass('btn-default').addClass('btn-info');
+                }
+        });
+        $('.submit').click(function(){
+            $.post('/order',{'ordertags[]':tags},function(status){
+
+                alert(status);
+            })
+        });
+
+        $('.removesubmit').click(function(){
+            $.post('/removeorder',{'list[]':removetags},function(data){
+                alert(data)
+            });
+        });
+    });
+</script>
     </html>

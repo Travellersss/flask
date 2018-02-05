@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>邮件</title>
+</head>
+<body>
+<p>你的关注者：<a href="{{url_for('main.user',username=post.user.username)}}">{{post.user.username}}</a></p>发表了新博客：
+<p><h4><a href="{{url_for('main.post',post_id=post.id)}}">{{post.title}}</a></h4></p>
+{{post.content}}
+</body>
+</html>

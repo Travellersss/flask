@@ -57,6 +57,13 @@ class Follow(db.Model):
     followed_id =db.Column(db.Integer,db.ForeignKey('user.id'),primary_key =True)
     timestamp=db.Column(db.DateTime,default=datetime.utcnow())
 
+
+orders=db.Table('user_tags',
+                db.Column('user_id',db.Integer(),db.ForeignKey('user.id')),
+                db.Column('tag_id',db.Integer(),db.ForeignKey('tag.id'))
+                )
+
+
 import hashlib
 from flask import request
 class User(UserMixin,db.Model):
@@ -72,10 +79,12 @@ class User(UserMixin,db.Model):
     merber_since = db.Column(db.DateTime(),default =datetime.utcnow())
     last_seen =db.Column(db.DateTime(),default = datetime.utcnow())
     avatar_hash=db.Column(db.String(32))
+    userimg_url=db.Column(db.String(255))
     role_id = db.Column(db.Integer,db.ForeignKey('role.id'))
     posts=db.relationship('Post',backref='user',lazy='dynamic')
     comments=db.relationship('Comment',backref='user',lazy='dynamic')
     messages=db.relationship('Message',backref='user',lazy='dynamic')
+    tags=db.relationship('Tag',secondary=orders,backref=db.backref('users'),lazy='dynamic')
     followed=db.relationship('Follow',foreign_keys=[Follow.follower_id],
                              backref=db.backref('follower',lazy='joined'),
                              lazy='dynamic',
@@ -256,7 +265,7 @@ class Post(db.Model):
     id=db.Column(db.Integer(),primary_key=True)
     title = db.Column(db.String(255))
     content=db.Column(db.Text())
-
+    clicknum=db.Column(db.Integer(),default=0)
     publish_date=db.Column(db.DateTime(),index=True,default =datetime.utcnow)
     body_html=db.Column(db.Text)
     comments=db.relationship('Comment',backref='post',lazy='dynamic')
@@ -397,7 +406,6 @@ class Message(db.Model):
     user_id=db.Column(db.Integer(),db.ForeignKey('user.id'))
     def __repr__(self):
         return self.msg
-
 
 
 

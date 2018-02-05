@@ -1,4 +1,7 @@
-from flask import render_template,session,url_for,redirect,flash
+import uuid
+
+import os
+from flask import render_template, session, url_for, redirect, flash, request, make_response, current_app
 from ..models import User,Post,Comment,Tag,tags,Message
 from . import main
 from ..decorators import permission_required
@@ -19,7 +22,8 @@ from .forms import EditProfileAdminForm
 from ..models import Role
 from flask_login import login_required
 from ..models import Permission
-
+from .forms import EditProfileForm
+from ..tasks import remind
 
 
 def siderbar_data():
@@ -32,6 +36,10 @@ def siderbar_data():
 def post(post_id):
     form = CommentForm()
     post = Post.query.get_or_404(post_id)
+    oldclicknum=post.clicknum
+    newclicknum=oldclicknum+1
+    post.clicknum=newclicknum
+    db.session.add(post)
     user=post.user
     if form.validate_on_submit():
         new_comment = Comment()
@@ -46,14 +54,11 @@ def post(post_id):
         db.session.add_all([new_comment,message])
         db.session.commit()
         messages=json.loads(str(Message.query.filter_by(status=True,user=user).count()))
-        socketio.emit('my response',messages, namespace='/test')
+
         return redirect(url_for('main.post',post_id=post_id))
-
-
     tags=post.tags
     comments=post.comments.order_by(Comment.date.desc()).all()
     recent,top_tags=siderbar_data()
-
     return render_template('post.html',post=post,tags=tags,comments=comments,form = form ,recent=recent,top_tags=top_tags)
 
 @cache.memoize(60)
@@ -97,6 +102,8 @@ def login():
             return redirect(url_for('login'))
     return render_template('login.html',form = form )
 
+
+
 @main.route('/user/<username>')
 @main.route('/user/<username>/<int:page>')
 def user(username,page=1):
@@ -107,7 +114,7 @@ def user(username,page=1):
     posts=posts
     return render_template('user.html',user = user,posts=posts)
 
-from .forms import EditProfileForm
+
 
 
 @main.route('/edit-profile',methods=["POST","GET"])
@@ -158,30 +165,30 @@ def edit_profile_admin(id):
 def make_cache_key(*args,**kwargs):
     path=request.path
     args=str(hash(frozenset(request.args.items())))
-    cookies=request.cookies.get('show_followed')
+
+    cookies=request.cookies.get('show_followed','0')
     return (path+args+cookies).encode('utf-8')
 
 
 @main.route('/',methods=["POST","GET"])
 @main.route('/<int:page>',methods=["POST","GET"])
-@cache.cached(timeout=600,key_prefix=make_cache_key)
+# @cache.cached(timeout=600,key_prefix=make_cache_key)
 def index(page=1):
     form = PostForm()
     show_followed=False
+
     if current_user.is_authenticated:
         show_followed =bool(request.cookies.get('show_followed',''))
     if show_followed:
         query=current_user.followed_posts
     else:
         query=Post.query
-
     pagination=query.order_by(Post.publish_date.desc()).paginate(page,20,error_out=False)
-
     tags=Tag.query.filter_by(parent_id=None).all()
-
+    orders=Tag.query.filter(not_(Tag.parent_id==None)).all()
     posts=pagination.items
     recent, top_tags = siderbar_data()
-    return render_template('home.html',tags=tags,form=form,posts=posts,recent=recent,top_tags=top_tags,pagination=pagination,show_followed=show_followed)
+    return render_template('home.html',orders=orders,tags=tags,form=form,posts=posts,recent=recent,top_tags=top_tags,pagination=pagination,show_followed=show_followed)
 
 
 @main.route('/edit/<int:id>',methods=["POST",'GET'])
@@ -262,6 +269,8 @@ def followed_by(username):
     follows=[{'user':item.follower,'timestamp':item.timestamp} for item in pagination.items]
     return render_template('followers.html', user=user, title='Followed of ', endpoint='.followed_by',pagination=pagination, follows=follows)
 
+
+
 from flask import make_response
 @main.route('/all')
 @login_required
@@ -276,6 +285,8 @@ def show_followed():
     resp.set_cookie('show_followed', '1', max_age=30 * 24 * 60 * 60)
     return resp
 
+
+
 @login_required
 @permission_required(Permission.MODERATE_COMMENTS or Permission.ADMINISTER)
 @main.route('/delete_comment/<int:post_id>/<int:id>')
@@ -287,6 +298,7 @@ def delete_comment(post_id,id):
     return redirect(url_for('main.post',post_id=post_id))
 
 
+
 @login_required
 @permission_required(Permission.MODERATE_COMMENTS or Permission.ADMINISTER)
 @main.route('/recover_comment/<int:post_id>/<int:id>')
@@ -296,6 +308,8 @@ def recover_comment(post_id,id):
     db.session.add(comment)
     db.session.commit()
     return redirect(url_for('main.post',post_id=post_id))
+
+
 
 @login_required
 @main.route('/write_post/',methods=['POST','GET'])
@@ -311,6 +325,7 @@ def writePost():
         db.session.add(post)
         db.session.flush()
         db.session.commit()
+        remind(post.id)
         return redirect(url_for('.index'))
 
     return render_template('writepost.html',form=form)
@@ -327,20 +342,24 @@ def store(post_id):
     return redirect(url_for('auto.login'))
 
 
+
 @login_required
 @main.route('/mystore')
 def mystore():
     posts=current_user.storeposts.all()
     return render_template('mystore.html',posts=posts)
 
+
+
 @login_required
 @main.route('/messages')
 def mymessage():
-
     messages=Message.query.filter_by(user=current_user,status=True).order_by(Message.timestamp).all()
     current_user.messages.update({'status':False})
     db.session.commit()
     return render_template('messages.html',messages=messages)
+
+
 @login_required
 @main.route('/oldmessages')
 def show_read_message():
@@ -373,6 +392,7 @@ def search():
 @cache.cached(timeout=60,key_prefix=make_cache_key)
 @main.route('/tag/<tag_title>')
 @main.route('/tag/<tag_title>/<page>')
+
 def handletag(tag_title,page=1):
     tag=Tag.query.filter_by(title=tag_title).first()
     print(tag.title)
@@ -382,3 +402,77 @@ def handletag(tag_title,page=1):
     return render_template('tagposts.html',posts=posts,tag=tag)
 
 
+@login_required
+@main.route('/order',methods=['POST','GET'])
+def order():
+    tags=request.form.getlist('ordertags[]')
+    print('+'*100)
+    print(tags)
+    user=current_user
+    for tag in tags:
+        order=Tag.query.filter_by(title=tag).first()
+        if user.tags.filter_by(id=order.id).first()==None:
+            user.tags.append(order)
+
+            db.session.add(user)
+            db.session.flush()
+    db.session.commit()
+    status='订阅成功'
+    return  status
+
+
+@login_required
+@main.route('/removeorder',methods=['POST'])
+def removeorder():
+    removeorders=request.form.getlist('list[]')
+    user = current_user
+    print(removeorders)
+    for order in removeorders:
+        tag=Tag.query.filter_by(title=order).first()
+        print(tag.title)
+        # user.tags.filter_by(id=tag.id).first()
+        user.tags.remove(tag)
+        db.session.add(user)
+    db.session.commit()
+    return '订阅取消成功'
+
+@login_required
+@main.route('/getorder')
+def getorder():
+    user=current_user
+    tags=user.tags
+    list=[]
+    for tag in tags:
+        list.append(tag.title)
+    data={'alreadyordertags':list}
+
+    return jsonify(data)
+
+
+
+
+
+@main.route('/userimg',methods=["POST","GET"])
+def handle_userimg():
+
+    if request.method=='POST':
+        f=request.fiiles['file']
+        if f  and '.' in f.filename and f.filename.rsplit('.',1)[1] in current_app.config['ALLOWED_EXTENSIONS']:
+            filename=str(uuid.uuid1())+f.filename.rsplit('.',1)[1]
+            f.save(current_app.config['UPLOAD_FOLDER']+filename)
+            old_user_img = current_user.user_img
+            if old_user_img:
+                os.remove(current_app.config['UPLOAD_FOLDER']+old_user_img)
+            current_user.user_img=filename
+            db.session.add(current_user)
+            db.session.commit()
+            return redirect(url_for('main.user',username=current_user.username))
+    return '''
+            <!doctype html>
+            <title>上传你的文件</title>
+            <h1>上传你的自定义头像</h1>
+            <form action="" method=post enctype=multipart/form-data>
+              <p><input type=file name=file>
+                 <input type=submit value=Upload>
+            </form>
+                '''

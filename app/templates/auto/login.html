@@ -4,9 +4,54 @@
 {% block body%}
 <div class="col-md-4 col-md-offset-4">
     <h1>hello ,please login!</h1>
-    {{ wtf.quick_form(form)}}
+    <form action="" method="post" class="form" role="form">
+        {{ form.hidden_tag() }}
+
+        <div class="form-group required">
+            {{ form.email.label(class="control-label") | safe }}
+            {{ form.email(class="form-control", required=True) }}
+        </div>
+        {% if form.errors.password %}
+        <div class="form-group has-error required">
+            {{ form.password.label(class="control-label") | safe }}
+            {{ form.password(class="form-control", required=True) }}
+            {% for error in form.errors.password %}
+                <p class="help-block">{{ error }}</p>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="form-group required">
+            {{ form.password.label(class="control-label") | safe }}
+            {{ form.password(class="form-control", required=True) }}
+        </div>
+        {% endif %}
+
+
+
+        {% if form.errors.verification_code %}
+        <div class="form-group has-error required">
+            {{ form.verification_code.label(class="control-label") | safe }}
+            {{ form.verification_code(class="form-control", required=True) }}
+            {% for error in form.errors.verification_code %}
+                <p class="help-block">{{ error }}</p>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="form-group required">
+            {{ form.verification_code.label(class="control-label") | safe }}
+            <label class="control-label"><img src="{{ url_for('static', filename='image/code/'+img_url) }}" class="code"><a
+                    href="javascript:getnewcode()">看不清，换一张</a></label>
+            {{ form.verification_code(class="form-control", required=True) }}
+        </div>
+        {% endif %}
+        <div class="from-group">
+            {{form.remenber_me}}
+            {{form.remenber_me.label(class='control-label')}}
+        </div>
+        {{ form.submit(class="btn btn-info codesubmit") }}
+    </form>
     <p>
-        New user？
+        新用户？
         <a href="{{url_for('auto.register')}}">Click here to register</a>
     </p>
     <div class="row">
@@ -14,4 +59,14 @@
         <a href="{{url_for('auto.updatepassword')}}">Click here to revise password</a>
     </div>
 </div>
+{% endblock%}
+{% block scripts %}
+<script>
+    function getnewcode(){
+        $.get("{{url_for('auto.createnewcode')}}",function(data){
+
+            $('.code').attr('src','{{url_for("static",filename="image/code/")}}'+data)
+        });
+    }
+</script>
 {% endblock%}
