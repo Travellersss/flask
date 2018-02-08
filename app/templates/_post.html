@@ -3,9 +3,15 @@
     {% for post in posts.items %}
     <li class="post">
         <div class="post-thumbnail">
+
             <a href="{{ url_for('.user', username=post.user.username) }}">
+                {% if post.user.userimg_url%}
+                <img src="{{url_for('static',filename='image/userimg/')}}{{post.user.userimg_url}}" alt="" width="40" height="40">
+                {%else %}
                 <img class="img-rounded profile-thumbnail" src="{{ post.user.gravatar(size=40) }}">
+                {% endif %}
             </a>
+
         </div>
         <div class="post-content">
             <div class="post-date">{{ moment(post.publish_date).fromNow() }}</div>

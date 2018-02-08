@@ -325,7 +325,7 @@ def writePost():
         db.session.add(post)
         db.session.flush()
         db.session.commit()
-        remind(post.id)
+        # remind(post.id)
         return redirect(url_for('.index'))
 
     return render_template('writepost.html',form=form)
@@ -334,6 +334,7 @@ def writePost():
 def store(post_id):
     if current_user.is_authenticated:
         post=Post.query.filter_by(id=post_id).first()
+
         post.storybyuser.append(current_user)
         flash('你已经收藏了此文章，可在我的收藏里面找打它！')
         db.session.add(post)
@@ -346,7 +347,8 @@ def store(post_id):
 @login_required
 @main.route('/mystore')
 def mystore():
-    posts=current_user.storeposts.all()
+    posts=current_user.storeposts.paginate(1,20)
+
     return render_template('mystore.html',posts=posts)
 
 
@@ -452,27 +454,32 @@ def getorder():
 
 
 
-@main.route('/userimg',methods=["POST","GET"])
-def handle_userimg():
+@main.route('/userimg/<username>',methods=["POST","GET"])
+def handle_userimg(username):
 
     if request.method=='POST':
-        f=request.fiiles['file']
+        f=request.files['file']
+        user = User.query.filter_by(username=username).first()
         if f  and '.' in f.filename and f.filename.rsplit('.',1)[1] in current_app.config['ALLOWED_EXTENSIONS']:
-            filename=str(uuid.uuid1())+f.filename.rsplit('.',1)[1]
+            filename=str(uuid.uuid1())+'.'+f.filename.rsplit('.',1)[1]
             f.save(current_app.config['UPLOAD_FOLDER']+filename)
-            old_user_img = current_user.user_img
+            old_user_img = user.userimg_url
             if old_user_img:
                 os.remove(current_app.config['UPLOAD_FOLDER']+old_user_img)
-            current_user.user_img=filename
-            db.session.add(current_user)
+
+            user.userimg_url=filename
+            db.session.add(user)
             db.session.commit()
-            return redirect(url_for('main.user',username=current_user.username))
-    return '''
-            <!doctype html>
-            <title>上传你的文件</title>
-            <h1>上传你的自定义头像</h1>
-            <form action="" method=post enctype=multipart/form-data>
-              <p><input type=file name=file>
-                 <input type=submit value=Upload>
-            </form>
-                '''
+            return redirect(url_for('main.user',username=username))
+    return redirect(url_for('main.user',username=username))
+
+@main.route('/insertpostimg',methods=["POST","GET"])
+def insertPostimg():
+    if request.method=='POST':
+        f = request.files['file']
+
+        if f and '.' in f.filename and f.filename.rsplit('.', 1)[1] in current_app.config['ALLOWED_EXTENSIONS']:
+            filename = str(uuid.uuid1()) + '.' + f.filename.rsplit('.', 1)[1]
+            f.save(current_app.config['UPLOAD_IMG'] + filename)
+            return filename
+    return redirect(url_for('main.writePost'))

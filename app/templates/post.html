@@ -11,14 +11,14 @@
                 <p style="float:right;">{{moment(post.publish_date).fromNow()}}</p>
             </div>
             <div class="row">
-            <div class="col-lg-12">
+            <div class="col-lg-12" style="text-align:center;">
 
                 <h3>{{post.title}}</h3>
             </div>
                 </div>
         </div>
         <div class="row">
-            <div class="col-lg-12">
+            <div class="col-lg-12" style="text-align:center;">
                 {% if post.body_html %}
                 {{post.body_html|safe}}
                 {% else%}
@@ -63,6 +63,7 @@
                     {% else%}
             <p>{{comment.text}}</p>
                     {% endif%}
+                    <a href=""></a>
                     {% if current_user.can(Permission.MODERATE_COMMENTS) or current_user.can(Permission. ADMINISTER) %}
 {% if not comment.disable%}
                     <a href="{{url_for('main.delete_comment',post_id=post.id,id=comment.id)}}" class="btn btn-danger btn-sm" style="float:right;">

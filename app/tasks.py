@@ -67,4 +67,4 @@ def on_reminder_save(maper,connect,self):
 
     remind.delay(self.id)
 
-db.event.listen(Post,'after_insert',on_reminder_save)
+# db.event.listen(Post,'after_insert',on_reminder_save)

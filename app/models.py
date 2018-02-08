@@ -311,9 +311,14 @@ class Post(db.Model):
 
     @staticmethod
     def on_changed_body(target,value,oldvalue,initator):
+        attrs = {
+            '*': ['class'],
+            'a': ['href', 'rel'],
+            'img': ['src', 'alt'],
+        }
         allowed_tags =['a','abbr','acronym','b','blockquote','code','em','li','i','ol','pre','strong','ul','h1',
-                       'h2','h3','h4','p']
-        target.body_html =bleach.linkify(bleach.clean(markdown(value,output_format='html'),tags=allowed_tags,strip=True))
+                       'h2','h3','h4','p','img']
+        target.body_html =bleach.linkify(bleach.clean(markdown(value,output_format='html'),tags=allowed_tags,attributes=attrs, strip=True))
 
 
     @staticmethod
@@ -332,6 +337,15 @@ class Post(db.Model):
 
         return self.title
 
+# class Reply(db.Model):
+#     __tablename__='replys'
+#     parent_id=db.Column(db.Integer,db.ForeignKey('comments.id'),primary_key=True)
+#     children_id=db.Column(db.Integer,db.ForeignKey('comments.id'),primary_key=True)
+#     timestamp=db.Column(db.DateTime,default=datetime.utcnow)
+
+
+
+db.event.listen(Post.content,'set',Post.on_changed_body)
 class Comment(db.Model):
     id=db.Column(db.Integer(),primary_key=True)
     body_html=db.Column(db.Text)
@@ -340,6 +354,8 @@ class Comment(db.Model):
     disable=db.Column(db.Boolean)
     post_id=db.Column(db.Integer(),db.ForeignKey('post.id'))
     user_id=db.Column(db.Integer(),db.ForeignKey('user.id'))
+    # parent_id=db.Column(db.Integer(),db.ForeignKey('comment.id'))
+    # parent=db.relationship('Comment',backref='childrens',lazy='dynamic')
     def to_json(self):
         json_comment = {
             'url': url_for('api.get_comment', id=self.id),

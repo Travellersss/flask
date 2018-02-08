@@ -1,6 +1,72 @@
 {% extends 'base.html'%}
 {% import 'bootstrap/wtf.html' as wtf %}
 {% block body%}
+<h2>编辑你的博客</h2>
+<p>此编辑器提供Markdown功能(<a href="" data-toggle="modal" data-target="#postModal">若想了解Markdown基本用法，请点击阅读帮助文档</a>)</p>
+<div class="modal fade" id="postModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <!--suppress XmlDuplicatedId -->
+                          <h4 class="modal-title" id="myModalLabel">Markdown简要规则</h4>
+                      </div>
+                      <div class="modal-body">
+                         <h3>1.标题</h3>
+                          <p>标题是每篇文章都需要也是最常用的格式，在 Markdown 中，如果一段文字被定义为标题，只要在这段文字前加 # 号即可。# 一级标题,## 二级标题 ### 三级标题
+
+以此类推，总共六级标题，建议在井号后加一个空格，这是最标准的 Markdown 语法。</p>
+                          <h3>2.列表</h3>
+                          <p>列表的显示只需要在文字前加上 - 或 * 即可变为无序列表，有序列表则直接在文字前加1. 2. 3. 符号要和文字之间加上一个字符的空格。</p>
+
+                          <h3>3.引用</h3>
+                          <p>只需要在文本前加入>这种大于符号即可</p>
+
+                          <h3>4.图片与链接</h3>
+                          <p>插入链接与插入图片的语法很像，区别在一个 !号。图片为：![]()&nbsp;&nbsp;&nbsp;链接为：[]()</p>
+
+                          <h3>5.粗体与斜体</h3>
+                          <p>Markdown 的粗体和斜体也非常简单，用两个 * 包含一段文本就是粗体的语法，用一个 * 包含一段文本就是斜体的语法。</p>
+
+                          <h3>代码框</h3>
+                          <p>如果你是个程序猿，需要在文章里优雅的引用代码框，在 Markdown下实现也非常简单，只需要用两个 ` 把中间的代码包裹起来。</p>
+
+                          <h3>分割线</h3>
+                          <p>分割线的语法只需要三个 * 号</p>
+                          <a href="https://www.jianshu.com/p/1e402922ee32/">了解更多？点这里</a>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+
+                      </div>
+                    </div>
+                  </div>
+                </div>
+<div class="modal fade" id="imgModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <!--suppress XmlDuplicatedId -->
+                          <h4 class="modal-title" id="myModalLabel">插入图片</h4>
+                      </div>
+                      <div class="modal-body">
+                          <div class="row">
+                          <form action="{{url_for('main.insertPostimg')}}" id='insertImg' method="post" enctype="multipart/form-data" style="margin-left:20px;">
+                              <input type="file" name="file" >
+
+                          </form>
+                          </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                          <button type="button" class="btn btn-primary " data-dismiss="modal" onclick="insertPostImg()">Save changes</button>
+
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
 <div class="row">
     <div class="col-lg-9 ">
         {% if current_user.can(Permission.WRITE_ARTICLES)%}
@@ -13,6 +79,34 @@
 {{ moment.include_moment()}}
 {{pagedown.include_pagedown()}}
 <script>
+    function insertPostImg(){
+
+        var targetUrl = $("#insertImg").attr("action");
+        var data = new FormData($( "#insertImg" )[0]);
+     $.ajax({
+     type:'post',
+     url:targetUrl,
+     cache: false,    //上传文件不需缓存
+     processData: false, //需设置为false。因为data值是FormData对象，不需要对数据做处理
+     contentType: false, //需设置为false。因为是FormData对象，且已经声明了属性enctype="multipart/form-data"
+     data:data,
+
+     success:function(data){
+        alert('success');
+        $('#flask-pagedown-body').val(function(index,v){
+            return v+"\n"+"![图片](http://127.0.0.1:5000/static/image/postimg/"+data+")";
+        });
+     },
+     error:function(){
+      alert("插入失败")
+     }
+    })
+
+    }
+
+</script>
+<script>
+
     $(function(){
 
 
@@ -42,6 +136,10 @@
                 });
     });
     });
+    });
+
+
     })
 </script>
+
 {% endblock%}

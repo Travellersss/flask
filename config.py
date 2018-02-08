@@ -59,5 +59,6 @@ class DecConfig(Config):
         },
     }
     #用户头像设置
-    UPLOAD_FOLDER = 'static/image/userimg/'
+    UPLOAD_FOLDER = 'app/static/image/userimg/'
     ALLOWED_EXTENSIONS = set(['pdf', 'png', 'jpg', 'jpeg', 'gif'])
+    UPLOAD_IMG='app/static/image/postimg/'

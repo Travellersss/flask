@@ -57,7 +57,7 @@ class PostForm(Form):
 
     tag=SelectField('请选择一级博文标签！',validators=[Required()],coerce=int)
     lasttag=SelectField('请选择二级博文标签！',validators=[Required()],coerce=int)
-    body = PageDownField('请输入你的内容！', validators=[Required()])
+    body = PageDownField('请输入你的内容(可拖动输入框右下角改变大小)<a href="" data-toggle="modal" data-target="#imgModal">插入图片</a>', validators=[Required()])
     def __init__(self,*args,**kwargs):
         super(PostForm,self).__init__(*args,**kwargs)
         self.tag.choices=[(tag.id,tag.title) for tag in Tag.query.filter(Tag.parent_id==None).all()]

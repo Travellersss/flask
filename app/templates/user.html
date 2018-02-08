@@ -7,15 +7,40 @@ Flasky
 {% block body %}
 <div class="row">
     <div class=" col-lg-4 col-lg-offset-2 ">
-
+        <div style="width:250px;height:250px;">
+        {% if user.userimg_url %}
+        <img src="{{url_for('static',filename='image/userimg/')}}{{user.userimg_url}}" alt="" width="250" height="250">
+        {% else %}
         <img src="{{user.gravatar(size=220)}}" alt="userImg"class="img-rounded profile-thumbnail">
-
-
-
-            {% if current_user.is_administrator  %}
-            <div class="btn btn-primary">修改头像</div>
+        {% endif %}
+        </div>
+            <div>
+            {% if current_user.is_administrator or user==current_user %}
+            <a href="javascript:void(0)" data-toggle="modal" data-target="#userModal"style="margin-left:100px;">修改头像</a>
             {% endif %}
+             <div class="modal fade" id="userModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title" id="myModalLabel">自定义头像</h4>
+                      </div>
+                      <div class="modal-body">
+                          <div class="row">
+                          <form action="{{url_for('main.handle_userimg',username=user.username)}}" method="post" enctype="multipart/form-data" style="margin-left:20px;">
+                              <input type="file" name="file" >
+                              <input type="submit" class="btn btn-primary" style="margin-top:20px;float:right;margin-right:20px;">
+                          </form>
+                          </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
 
+                      </div>
+                    </div>
+                  </div>
+                </div>
+            </div>
     </div>
     <div class="col-lg-4">
         <h1>{{user.username}}</h1>
