@@ -29,19 +29,22 @@ class DecConfig(Config):
     FLASKY_MAIL_SENDER='15182620613@163.com'
     FLASKY_ADMIN='15182620613@163.com'
 
-    MSEARCH_INDEX_NAME = 'whoosh_index'
+    # MSEARCH_INDEX_NAME = 'whoosh_index'
+    #
+    # # simple,whoosh
+    #
+    # MSEARCH_BACKEND = 'whoosh'
+    #
+    # # 自动生成或更新索引
+    #
+    # MSEARCH_ENABLE = True
 
-    # simple,whoosh
 
-    MSEARCH_BACKEND = 'whoosh'
-
-    # 自动生成或更新索引
-
-    MSEARCH_ENABLE = True
+    MAX_SEARCH_RESULTS = 50
+    WHOOSH_DISABLED = True
     # WHOOSH_BASE = 'mysql+pymysql://root:root@127.0.0.1:3306/flask'
     # MAX_SEARCH_RESULTS = 50
-    WHOOSH_BASE = 'whoosh_index'
-    WHOOSH_ENABLE = True
+    # WHOOSH_DISABLED = True
 
     # 缓存设置
     CACHE_TYPE='simple'

@@ -1,24 +1,36 @@
 {% extends 'base.html'%}
-
+{% block css %}
+<link rel="stylesheet" href="{{url_for('static',filename='css/user.css')}}">
+{% endblock %}
 {% block title%}
 Flasky
 {% endblock%}
 
 {% block body %}
 <div class="row">
-    <div class=" col-lg-4 col-lg-offset-2 ">
-        <div style="width:250px;height:250px;">
-        {% if user.userimg_url %}
-        <img src="{{url_for('static',filename='image/userimg/')}}{{user.userimg_url}}" alt="" width="250" height="250">
-        {% else %}
-        <img src="{{user.gravatar(size=220)}}" alt="userImg"class="img-rounded profile-thumbnail">
-        {% endif %}
-        </div>
-            <div>
-            {% if current_user.is_administrator or user==current_user %}
-            <a href="javascript:void(0)" data-toggle="modal" data-target="#userModal"style="margin-left:100px;">修改头像</a>
+    <div class="col-lg-offset-2 col-lg-8 user">
+        <div class="user-img">
+            {% if user.userimg_url %}
+                {% if current_user.is_administrator or user==current_user %}
+                <a href="javascript:void(0)" data-toggle="modal" data-target="#userModal">
+                    <img src="{{url_for('static',filename='image/userimg/')}}{{user.userimg_url}}" alt="" width="60" height="60">
+                </a>
+                <span style="display:none;">点击可自定义头像</span>
+                {% else %}
+                    <img src="{{url_for('static',filename='image/userimg/')}}{{user.userimg_url}}" alt="" width="60" height="60">
+                {% endif %}
+             {% else %}
+                {% if current_user.is_administrator or user==current_user %}
+                <a href="javascript:void(0)" data-toggle="modal" data-target="#userModal">
+                    <img src="{{user.gravatar(size=60)}}" alt="userImg"class="img-rounded profile-thumbnail">
+                </a>
+                <span style="display:none;">点击可自定义头像</span>
+                {% else %}
+                <img src="{{user.gravatar(size=60)}}" alt="userImg"class="img-rounded profile-thumbnail">
+                {% endif %}
             {% endif %}
-             <div class="modal fade" id="userModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+
+            <div class="modal fade" id="userModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
                   <div class="modal-dialog" role="document">
                     <div class="modal-content">
                       <div class="modal-header">
@@ -40,85 +52,121 @@ Flasky
                     </div>
                   </div>
                 </div>
+        </div>
+        <div class="user-info">
+            <h4>{{user.username}}</h4>
+            <div>
+
+                    <a href="{{url_for('main.followers',username=user.username)}}">
+                        关注:<span class="badge" style="background-color:#ea6f5a;">{{user.followers.count()}}</span>
+                    </a>
+                    <a href="{{url_for('main.followed_by',username=user.username)}}">
+                        粉丝:<span class="badge" style="background-color:#ea6f5a;">{{user.followed.count()}}</span>
+                    </a>
+
+                <a href="#">
+                    文章：<span class="badge" style="background-color:#ea6f5a;">{{ user.posts.count() }}</span>
+
+                </a>
+                {% if current_user.is_authenticated %}
+                {% if not current_user.is_following(user)%}
+                <a href="{{url_for('main.follow',username=user.username)}}" class="btn btn-info">
+                    +关注
+                </a>
+                {% else%}
+                <a href="{{url_for('main.unfollow',username=user.username)}}" class="btn btn-primary" >已关注</a>
+                {% endif %}
+                {% else %}
+                <a href="{{url_for('auto.login')}}" class="btn btn-info">
+                    +关注
+                </a>
+                {% endif %}
+            {% if current_user.is_administrator()%}
+                    <a href="{{url_for('main.edit_profile_admin',id=user.id)}}" class="btn btn-danger">
+                        <span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>修改资料 [管理员]
+                    </a>
+                {% elif user==current_user %}
+                    <a href="{{url_for('main.edit_profile')}}" class="btn btn-default">
+                        <span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>修改资料
+                    </a>
+                {%endif%}
             </div>
-    </div>
-    <div class="col-lg-4">
-        <h1>{{user.username}}</h1>
-        {% if user.name or user.location%}
-        <p>
-            {% if user.name %}
-            {{user.name}}
-            {%endif%}
-            {% if user.location %}
-            From <a href="http://maps.baidu.com/?q={{user.location}}">
-            {{user.location }}
-        </a>
-            {% endif%}
-        </p>
-        {% endif%}
-        {% if current_user.is_administrator() %}
-        <p><a href="mailto:{{user.email}}">{{user.email}}</a></p>
-        {%endif%}
-        {% if user.about_me%}
-        <p>{{user.about_me}}</p>
-        {% endif%}
-        <p>
-            Menber since {{moment(user.merber_since).format('L')}}.
-            Last seen {{moment(user.last_seen).fromNow()}}
-        </p>
-        <div class="row">
-    {% if current_user.can(Permission.FOLLOW) and current_user !=user%}
-    {% if not current_user.is_following(user)%}
-    <a href="{{url_for('main.follow',username=user.username)}}" class="btn btn-primary">
-        Follow
-    </a>
-    {% else%}
-    <a href="{{url_for('main.unfollow',username=user.username)}}" class="btn btn-primary">Unfollow</a>
-    {% endif %}
-    {% endif %}
-    <a href="{{url_for('main.followers',username=user.username)}}">
-        Followers:<span class="badge">{{user.followers.count()}}</span>
-    </a>
-    <a href="{{url_for('main.followed_by',username=user.username)}}">
-        Following:<span class="badge">{{user.followed.count()}}</span>
-    </a>
-    {% if current_user.is_authenticated and user !=current_user and user.is_following(current_user)%}
-    |<span class="label label-default">Follows you</span>
-    {% endif %}
-
-             {% if current_user.is_administrator()%}
-    <a href="{{url_for('main.edit_profile_admin',id=user.id)}}" class="btn btn-danger">
-        Edit Profile [Admin]
-    </a>
-
-        {% else %}
-        {% if user==current_user %}
-        <a href="{{url_for('main.edit_profile')}}" class="btn btn-default">
-            Edit Profile
-        </a>
-        {%endif%}
-        {%endif%}
 </div>
 
+        <hr>
+        <p class="about_me">
+            {% if user.about_me %}
+            {{ user.about_me}}
+            {% else %}
+            这个作者很懒的，他什么也没留下。。
+            {% endif %}
+        </p>
     </div>
 
 </div>
 <div class="row">
-    <h3>Posts by {{user.username}}</h3>
+    <div class="col-lg-offset-2 col-lg-8">
+    <h3> {{user.username}}的文章</h3>
     <hr>
-    {% include '_post.html'%}
+
+        <div class="col-lg-12 post-list">
+        <ul><a href="#"></a>
+        {% for post in posts.items%}
+        <li>
+
+            <div class="author">
+                <img style="border-radius:50%;"  src="{{ post.user.gravatar(size=30)}}" alt="用户头像">
+                <a href="{{url_for('main.user',username=post.user.username)}}" target="_blank">{{post.user.username}}</a>
+                <p style="float:right;margin-top:10px;">{{moment(post.publish_date).fromNow()}}</p>
+            </div>
+
+            <div class="article">
+                {% if post.post_img%}
+                <a href="{{url_for('.post',post_id=post.id)}}"><img src="{{url_for('static',filename=post.post_img)}}" alt="图片" width="150px;" height="120px;" class="post-img"></a>
+                {% endif %}
+                <a href="{{url_for('main.post',post_id=post.id)}}" target="_blank"><h4><b>{{post.title}}</b></h4></a>
+                <p>{{post.content |truncate(150)|safe}}</p>
+            </div>
+
+
+            <div class="meta">
+                    {% if post.tags[0]%}
+                    <a href="{{url_for('main.handletag',tag_title=post.tags)}}" class="tag">{{post.tags[0]}}</a>
+                    {% endif %}
+                    <a href="{{url_for('main.post',post_id=post.id)}}"><span class="glyphicon glyphicon-eye-open"></span>&nbsp;{{post.clicknum}}</a>
+                    <a href="{{url_for('main.post',post_id=post.id)}}#"><span class="glyphicon glyphicon-comment"></span>&nbsp;{{post.comments.count()}}</a>
+                    {% if post.likenum %}
+                    <a href="{{url_for('main.like',post_id=post.id)}}"><span class="glyphicon glyphicon-heart"></span>&nbsp;{{post.likenum}}</a>
+                    {% else %}
+                    <a href="{{url_for('main.like',post_id=post.id)}}"><span class="glyphicon glyphicon-heart-empty"></span>&nbsp;{{post.likenum}}</a>
+                    {% endif %}
+                    {% if current_user.is_administrator() or current_user==user %}
+                           <a href="{{url_for('.edit',id=post.id)}}"><span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>&nbsp;编辑</a>
+                           <a href="{{url_for('.removepost',post_id=post.id)}}"><span class="glyphicon glyphicon-trash" aria-hidden="true"></span>&nbsp;删除</a>
+                    {% endif %}
+            </div>
+        </li><hr>
+        {%endfor%}
+        </ul>
+
+
+    </div>
+    </div>
 </div>
 
 
 {% endblock%}
 
 
-{%block footer%}
 
+{%block footer%}
+<div class="col-lg-offset-2 col-lg-8">
 {% import 'macro.html' as s %}
 {{ s.render_pagination(posts,'main.user', username=user.username)}}
-        {{moment.include_moment()}}
-    </div>
 </div>
 
 {%endblock%}
+
+{%  block scripts %}
+{{moment.include_moment()}}
+{% endblock %}

@@ -1,0 +1,35 @@
+.message ul {
+    list-style-type:none;
+
+}
+.message ul li{
+    padding-top:20px;
+    padding-left:20px;
+    padding-right:20px;
+    }
+.message ul li:hover{
+    background-color:#f9f6ed;
+}
+.message ul li h4 a{
+    color:black;
+}
+.message ul li .msg-comment-info {
+    color:#969696;
+}
+
+.message ul li .msg-comment-info a{
+ color:#969696;
+}
+.list-group li:hover {
+    background-color:#969696;
+}
+
+.temp{
+    background-color:#f9f6ed;
+}
+
+.no-img{
+    text-align:center;
+    margin:auto 200px;
+    color:#969696;
+}

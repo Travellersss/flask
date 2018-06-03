@@ -1,6 +1,6 @@
 from flask_script import Manager,Server
 from flask_migrate import Migrate,MigrateCommand
-from app.models import User,Post,Tag,Comment,Role,Message
+from app.models import User,Post,Tag,Comment,Role,Message,Follow
 import os
 from app import create_app,db,mail,search,socketio,celery
 
@@ -16,7 +16,7 @@ manager.add_command('db',MigrateCommand)
 
 @manager.shell
 def make_shell_context():
-    return dict(app=app,db=db,User=User,Post=Post,Tag=Tag,Comment=Comment,mail=mail,Role =Role,Message=Message)
+    return dict(app=app,db=db,User=User,Post=Post,Tag=Tag,Comment=Comment,mail=mail,Role =Role,Message=Message,Follow=Follow)
 
 
 

@@ -82,6 +82,7 @@
     function insertPostImg(){
 
         var targetUrl = $("#insertImg").attr("action");
+        alert(targetUrl)
         var data = new FormData($( "#insertImg" )[0]);
      $.ajax({
      type:'post',
@@ -108,38 +109,39 @@
 <script>
 
     $(function(){
+        var lasttag=$('#lasttag');
+
+        host=location.hostname+':'+location.port;
+
+        $.get('http://'+host+'/tags/编程语言',function(dic){
 
 
-    host=location.hostname+':'+location.port;
+        lasttag.empty();
+        $.each(dic.data,function(index,item){
+                        lasttag.append('<option value='+item['id']+'>'+item['title']+'</option>');
+                    });
+        });
 
-    $.get('http://'+host+'/tags/编程语言',function(dic){
 
-    var lasttag=$('#lasttag');
-    lasttag.empty();
-    $.each(dic.data,function(index,item){
-                    lasttag.append('<option value='+item['id']+'>'+item['title']+'</option>');
-                });
+        $('#tag').change(function(){
+            var s=$(this).val();
+
+            host=location.hostname+':'+location.port;
+
+            $.get('http://'+host+'/tags/'+s,function(dic){
+
+                var lasttag=$('#lasttag');
+
+                lasttag.empty();
+                $.each(dic.data,function(index,item){
+                        lasttag.append('<option value='+item['id']+'>'+item['title']+'</option>');
+                    });
+            });
+        });
     });
-    $('#tag').change(function(){
-    var s=$(this).val();
 
 
-    host=location.hostname+':'+location.port;
-    <!--完整的url才能正确的发送请求-->
-    $.get('http://'+host+'/tags/'+s,function(dic){
 
-    var lasttag=$('#lasttag');
-<!--先清空，不然之前的也会留下-->
-    lasttag.empty();
-    $.each(dic.data,function(index,item){
-                    lasttag.append('<option value='+item['id']+'>'+item['title']+'</option>');
-                });
-    });
-    });
-    });
-
-
-    })
 </script>
 
 {% endblock%}

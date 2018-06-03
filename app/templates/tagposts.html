@@ -1,13 +1,13 @@
 {% extends 'base.html'%}
 {% block body%}
+<div class="col-lg-offset-2 col-lg-8 col-lg-offset-2 post-list">
+
 <ol class="breadcrumb">
   <li><a href="/">首页</a></li>
   <li class="active">{{tag}}</li>
 
 </ol>
 {% include '_post.html'%}
-{% import  'macro.html' as s%}
-{{ s.render_pagination(posts,'main.index')}}
-        {{moment.include_moment()}}
-
+{{moment.include_moment()}}
+</div>
 {% endblock%}

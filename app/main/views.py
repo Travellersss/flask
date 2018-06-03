@@ -31,46 +31,74 @@ def siderbar_data():
     top_tags=db.session.query(Tag,func.count(tags.c.post_id).label('total')).join(tags).group_by(Tag).order_by('total DESC').limit(5).all()
     return recent , top_tags
 
-@cache.memoize(60)
-@main.route('/post/<int:post_id>',methods=['GET','POST'])
-def post(post_id):
-    form = CommentForm()
-    post = Post.query.get_or_404(post_id)
-    oldclicknum=post.clicknum
-    newclicknum=oldclicknum+1
-    post.clicknum=newclicknum
-    db.session.add(post)
-    user=post.user
-    if form.validate_on_submit():
-        new_comment = Comment()
-        new_comment.user=current_user
 
-        new_comment.text=form.text.data
-        new_comment.post_id=post_id
-        new_comment.date = datetime.datetime.now()
-        s='{0}对您的文章{1}发表了评论:{2}'.format(current_user.username,post.title,new_comment.text)
-        message = Message(user=user, msg=s, comment_username=current_user.username, tag='comment',
-                          comment_body=new_comment.text,post_title=post.title,post_id=post.id)
-        db.session.add_all([new_comment,message])
+@main.route('/liketoggle/<status>/<post_id>')
+def liketoggle(status,post_id):
+    post=Post.query.filter_by(id=post_id).first()
+    if current_user.is_authenticated:
+
+        if status == 'like':
+            post.liked.append(current_user)
+            post.weight_value = 0.1 * post.clicknum + 0.3 * len(post.liked) + 0.5 * post.comments.count()
+            msg=Message(post_id=post_id,comment_username = current_user.username,tag='like',user_id=post.user.id)
+            db.session.add(msg)
+
+
+        else:
+            post.liked.remove(current_user)
+
+            post.weight_value = 0.1 * post.clicknum + 0.3 * len(post.liked) + 0.5 * post.comments.count()
+
+        db.session.add(post)
         db.session.commit()
-        messages=json.loads(str(Message.query.filter_by(status=True,user=user).count()))
+        data =[{'likenum':len(post.liked)}]
+        return jsonify(data)
+    return redirect(url_for('auto.login'))
 
-        return redirect(url_for('main.post',post_id=post_id))
+@cache.memoize(60)
+@main.route('/post/<int:post_id>')
+@main.route('/post/<int:post_id>/<page>')
+def post(post_id,page=1):
+    post = Post.query.get_or_404(post_id)
+    if current_user.is_authenticated:
+        if not current_user in post.records:
+            post.records.append(current_user)
+    post.clicknum=post.clicknum+1
+    post.weight_value=0.1*post.clicknum + 0.3*len(post.liked)+0.5*post.comments.count()
+    db.session.add(post)
+    db.session.commit()
+    user=post.user
     tags=post.tags
-    comments=post.comments.order_by(Comment.date.desc()).all()
+    pagination = post.comments.order_by(Comment.date.desc()).filter_by(parent_id=None).paginate(1,10)
+    comments=pagination.items
+    if tags[0]:
+        s = str(tags[0])
+        tag = Tag.query.filter_by(title=s).first()
+        posts=tag.posts.order_by(Post.weight_value.desc(),Post.publish_date.desc()).limit(5).all()
+    else:
+        posts = Post.query.order_by(Post.weight_value.desc(),Post.publish_date.desc()).limit(5).all()
     recent,top_tags=siderbar_data()
-    return render_template('post.html',post=post,tags=tags,comments=comments,form = form ,recent=recent,top_tags=top_tags)
+    orders = Tag.query.filter(not_(Tag.parent_id == None)).all()
+    storypostnum= len(post.storybyuser)
+    likenum=len(post.liked)
+    readnum=len(post.records)
+    return render_template('post.html',likenum=likenum,readnum=readnum,post=post,tags=tags,comments=comments,recent=recent,top_tags=top_tags,orders=orders,storypostnum=storypostnum,pagination=pagination,posts=posts)
+
+
 
 @cache.memoize(60)
 @main.route('/tags/<tag_title>')
 def tag(tag_title):
+
     if tag_title.isdigit():
         tag=Tag.query.filter_by(id=tag_title).first()
     else:
         tag=Tag.query.filter_by(title=tag_title).first()
     # posts=tag.posts.order_by(Post.publish_date.desc()).all()
     # recent,top_tags=siderbar_data()
-    tags=Tag.query.filter_by(parent_id=tag.id).all()
+    tags=tag.childrens
+    print('+'*120)
+    print(tags)
     list=[]
     for t in tags:
         list.append({'id':t.id,'title':t.title})
@@ -91,7 +119,7 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(username = form.username.data)
         if user:
-            flash('already login ')
+            flash('已经登录')
             return redirect(url_for('login'))
         else:
             user = User()
@@ -110,13 +138,13 @@ def user(username,page=1):
     user =User.query.filter_by(username =username).first()
     if user is None:
         abort(404)
-    posts = user.posts.order_by(Post.publish_date.desc()).paginate(1,10)
-    posts=posts
+    posts = user.posts.order_by(Post.publish_date.desc()).paginate(page,10)
+
     return render_template('user.html',user = user,posts=posts)
 
 
 
-
+#用户修改个人信息
 @main.route('/edit-profile',methods=["POST","GET"])
 @login_required
 def edit_profile():
@@ -127,7 +155,7 @@ def edit_profile():
         current_user.about_me=form.about_me.data
         db.session.add(current_user)
         db.session.commit()
-        flash('Your profile has been update')
+        flash('你的个人信息已经更新')
         return redirect(url_for('main.user',username=current_user.username))
     form.name.data=current_user.name
     form.location.data=current_user.location
@@ -135,6 +163,7 @@ def edit_profile():
     return render_template('edit_profile.html',form=form)
 
 
+#管理员修改用户信息
 @main.route('/edit-profile/<int:id>',methods=["GET","POST"])
 @login_required
 @admin_required
@@ -151,7 +180,7 @@ def edit_profile_admin(id):
         user.about_me = form.about_me.data
         db.session.add(user)
         db.session.commit()
-        flash('The profile has been updated.')
+        flash('个人信息已更新')
         return redirect(url_for('.user', username=user.username))
     form.email.data=user.email
     form.username.data=user.username
@@ -176,20 +205,30 @@ def make_cache_key(*args,**kwargs):
 def index(page=1):
     form = PostForm()
     show_followed=False
-
+    #判断用户是否登录，只有登录后，才可查看他所关注作者的博文
     if current_user.is_authenticated:
         show_followed =bool(request.cookies.get('show_followed',''))
     if show_followed:
         query=current_user.followed_posts
     else:
         query=Post.query
-    pagination=query.order_by(Post.publish_date.desc()).paginate(page,20,error_out=False)
+    pagination=query.order_by(Post.publish_date.desc())\
+    .paginate(page,20,error_out=False)
     tags=Tag.query.filter_by(parent_id=None).all()
     orders=Tag.query.filter(not_(Tag.parent_id==None)).all()
     posts=pagination.items
-    recent, top_tags = siderbar_data()
-    return render_template('home.html',orders=orders,tags=tags,form=form,posts=posts,recent=recent,top_tags=top_tags,pagination=pagination,show_followed=show_followed)
+    #推荐文章
+    recent=Post.query.order_by(Post.weight_value.desc(),\
+        Post.publish_date.desc()).limit(8).all()
 
+    return render_template('home.html',orders=orders,tags=tags,form=form,\
+    posts=posts,recent=recent,pagination=pagination,show_followed=show_followed)
+
+
+
+@main.route('/commentpage/<page>')
+def commentpage(page=1):
+    pass
 
 @main.route('/edit/<int:id>',methods=["POST",'GET'])
 @login_required
@@ -203,7 +242,7 @@ def edit(id):
         post.content =form.body.data
         db.session.add(post)
         db.session.commit()
-        flash('The post has been updated')
+        flash('博文已经更改完成')
         return redirect(url_for('main.post',post_id=post.id))
     form.title.data=post.title
     form.body.data=post.content
@@ -216,14 +255,14 @@ def edit(id):
 def follow(username):
     user=User.query.filter_by(username=username).first()
     if user is None:
-        flash('Invalid User')
+        flash('用户不存在')
         return redirect(url_for('main.index'))
     if current_user.is_following(user):
         flash('你已经关注过他了')
         return redirect(url_for('main.user',username=username))
     current_user.follow(user)
-    msg='关注了你'
-    message=Message(user=user,msg=msg,comment_username=current_user.username)
+
+    message=Message(user=user,comment_username=current_user.username,tag='follow')
     db.session.add_all([current_user,message])
     db.session.commit()
     flash('你已经关注他了')
@@ -233,24 +272,37 @@ def follow(username):
 @login_required
 @permission_required(Permission.FOLLOW)
 def unfollow(username):
-    user=User.query.filter_by(username=username)
-    if user is not None:
-        flash('Invalid User' )
-        return redirect('main.user',username=username)
-    if  not current_user.is_following:
-        flash('你并没有关注此用户')
-        return redirect('main.user',username=username)
-    current_user.unfollow()
-    flash('你已经取消对此用户的关注')
-    return redirect(url_for('mian.index'))
+    user=User.query.filter_by(username=username).first()
 
+    if  not current_user.is_following(user):
+        flash('你并没有关注此用户')
+        return redirect(url_for('main.user',username=username))
+    current_user.unfollow(user)
+    flash('你已经取消对此用户的关注')
+    return redirect(url_for('.user',username=username))
+
+@main.route('/followtoggle/<username>')
+@login_required
+@permission_required(Permission.FOLLOW)
+def followtoggle(username):
+    user = User.query.filter_by(username=username).first()
+    if current_user.is_following(user):
+        current_user.unfollow(user)
+
+        return 'unfollow'
+    else:
+        current_user.follow(user)
+        message = Message(user=user,comment_username=current_user.username, tag='follow')
+        db.session.add_all([current_user, message])
+        db.session.commit()
+        return 'follow'
 
 from flask import request
 @main.route('/followers/<username>')
 def followers(username):
     user =User.query.filter_by(username=username).first()
     if user is None:
-        flash('Invalid user')
+        flash('无效用户')
         return redirect(url_for('main.index'))
     page=request.args.get('page',1,type=int)
     pagination=user.followers.paginate(page,20)
@@ -262,7 +314,7 @@ def followers(username):
 def followed_by(username):
     user =User.query.filter_by(username=username).first()
     if user is None:
-        flash('Invalid user')
+        flash('不存在此用户')
         return redirect(url_for('main.index'))
     page=request.args.get('page',1,type=int)
     pagination=user.followed.paginate(page,20)
@@ -304,32 +356,15 @@ def delete_comment(post_id,id):
 @main.route('/recover_comment/<int:post_id>/<int:id>')
 def recover_comment(post_id,id):
     comment=Comment.query.get_or_404(id)
-    comment.disable=False
-    db.session.add(comment)
+
+    db.session.delete(comment)
     db.session.commit()
     return redirect(url_for('main.post',post_id=post_id))
 
 
 
+
 @login_required
-@main.route('/write_post/',methods=['POST','GET'])
-def writePost():
-    form=PostForm()
-    if form.validate_on_submit():
-        post=Post(title=form.title.data,content=form.body.data,user=current_user)
-        db.session.add(post)
-        db.session.flush()
-        db.session.commit()
-        post=Post.query.filter_by(title=form.title.data).first()
-        post.tags.append(Tag.query.get(form.lasttag.data))
-        db.session.add(post)
-        db.session.flush()
-        db.session.commit()
-        # remind(post.id)
-        return redirect(url_for('.index'))
-
-    return render_template('writepost.html',form=form)
-
 @main.route('/store/<int:post_id>')
 def store(post_id):
     if current_user.is_authenticated:
@@ -337,6 +372,12 @@ def store(post_id):
 
         post.storybyuser.append(current_user)
         flash('你已经收藏了此文章，可在我的收藏里面找打它！')
+        msg=Message()
+        msg.tag='store'
+        msg.comment_username=current_user.username
+        msg.post_title=post.title
+        msg.post_id=post.id
+        db.session.add(msg)
         db.session.add(post)
         db.session.commit()
         return redirect(url_for('main.post',post_id=post_id))
@@ -346,38 +387,64 @@ def store(post_id):
 
 @login_required
 @main.route('/mystore')
-def mystore():
-    posts=current_user.storeposts.paginate(1,20)
+@main.route('/mystore/<page>')
+def mystore(page=1):
+    posts=current_user.user.paginate(page,20)
 
     return render_template('mystore.html',posts=posts)
 
 
+@main.route('/remstore/<post_id>')
+def removestore(post_id):
+    post = Post.query.filter_by(id=post_id).first()
 
-@login_required
-@main.route('/messages')
-def mymessage():
-    messages=Message.query.filter_by(user=current_user,status=True).order_by(Message.timestamp).all()
-    current_user.messages.update({'status':False})
+    post.storybyuser.remove(current_user)
+
+    flash('你已经移除了此文章！')
+    db.session.add(post)
+    db.session.flush()
     db.session.commit()
-    return render_template('messages.html',messages=messages)
+    return redirect(url_for('.mystore'))
+
 
 
 @login_required
-@main.route('/oldmessages')
-def show_read_message():
-    messages=Message.query.filter_by(user=current_user,status=False).order_by(Message.timestamp).all()
-    return render_template('messages.html',messages=messages)
+@main.route('/messages/<tag>')
+def mymessage(tag):
+    messages=Message.query.filter_by(user=current_user,status=True,tag=tag).order_by(Message.timestamp).all()
+    current_user.messages.filter_by(tag=tag).update({'status':False})
+    db.session.commit()
+    orders = Tag.query.filter(not_(Tag.parent_id == None)).all()
+    return render_template('messages.html',messages=messages,tag=tag,orders=orders)
+
+
+@login_required
+@main.route('/oldmessages/<tag>')
+def show_read_message(tag):
+    orders = Tag.query.filter(not_(Tag.parent_id == None)).all()
+    messages=Message.query.filter_by(user=current_user,status=False,tag=tag).order_by(Message.timestamp).all()
+    return render_template('messages.html',messages=messages,tag=tag,orders=orders)
+
+@login_required
+@main.route('/removemsg/<msg_id>')
+def removemessage(msg_id):
+    msg=Message.query.filter_by(id=msg_id).first()
+    if msg:
+        db.session.delete(msg)
+        db.session.commit()
+    return redirect(request.args.get('next') or url_for('main.show_read_message',tag='comment'))
 
 @main.route('/search')
 def search():
     keyword=request.args.get('search')
-
-
-    posts = Post.query.msearch(keyword, fields=['title','content'], limit=20).all()
+    posts = Post.query.whoosh_search(keyword).\
+        order_by(Post.weight_value.desc(),Post.publish_date.desc()).all()
     if len(posts)==0:
-        posts=Post.query.filter(or_(Post.title.contains(keyword),Post.content.contains(keyword))).limit(20).all()
-    # posts = search.whoosh_search(Post, query=keyword, fields=['title','content'], limit=20)
-    return render_template('searchpost.html',posts=posts)
+        posts=Post.query.filter(or_(Post.title.contains(keyword),\
+        Post.content.contains(keyword))).order_by(Post.weight_value.desc(),\
+        Post.publish_date.desc()).limit(20).all()
+    orders = Tag.query.filter(not_(Tag.parent_id == None)).all()
+    return render_template('searchpost.html',posts=posts,orders=orders)
 
 
 
@@ -397,19 +464,17 @@ def search():
 
 def handletag(tag_title,page=1):
     tag=Tag.query.filter_by(title=tag_title).first()
-    print(tag.title)
-    print('+'*100)
+
     posts=tag.posts.order_by(Post.publish_date.desc()).paginate(page,20,error_out=False)
     print(posts)
-    return render_template('tagposts.html',posts=posts,tag=tag)
+    orders = Tag.query.filter(not_(Tag.parent_id == None)).all()
+    return render_template('tagposts.html',posts=posts,tag=tag,orders=orders)
 
 
 @login_required
 @main.route('/order',methods=['POST','GET'])
 def order():
     tags=request.form.getlist('ordertags[]')
-    print('+'*100)
-    print(tags)
     user=current_user
     for tag in tags:
         order=Tag.query.filter_by(title=tag).first()
@@ -431,8 +496,7 @@ def removeorder():
     print(removeorders)
     for order in removeorders:
         tag=Tag.query.filter_by(title=order).first()
-        print(tag.title)
-        # user.tags.filter_by(id=tag.id).first()
+
         user.tags.remove(tag)
         db.session.add(user)
     db.session.commit()
@@ -456,7 +520,6 @@ def getorder():
 
 @main.route('/userimg/<username>',methods=["POST","GET"])
 def handle_userimg(username):
-
     if request.method=='POST':
         f=request.files['file']
         user = User.query.filter_by(username=username).first()
@@ -473,6 +536,35 @@ def handle_userimg(username):
             return redirect(url_for('main.user',username=username))
     return redirect(url_for('main.user',username=username))
 
+
+import flask_whooshalchemyplus
+@login_required
+@main.route('/write_post/',methods=['POST','GET'])
+def writePost():
+    form=PostForm()
+    if form.validate_on_submit():
+        if 'post_img' in session and session.get('post_img',None):
+            post_img=session.get('post_img',None)
+            session.pop('post_img')
+            post=Post(title=form.title.data,content=form.body.data,user=current_user,post_img=post_img)
+
+        else:
+            post=Post(title=form.title.data,content=form.body.data,user=current_user)
+        db.session.add(post)
+        db.session.flush()
+        db.session.commit()
+
+        post.tags.append(Tag.query.get(form.lasttag.data))
+        db.session.add(post)
+        db.session.flush()
+        db.session.commit()
+        # remind(post.id)
+        # flask_whooshalchemyplus.index_one_model(post)
+        return redirect(url_for('.index'))
+
+    return render_template('writepost.html',form=form)
+
+
 @main.route('/insertpostimg',methods=["POST","GET"])
 def insertPostimg():
     if request.method=='POST':
@@ -481,5 +573,137 @@ def insertPostimg():
         if f and '.' in f.filename and f.filename.rsplit('.', 1)[1] in current_app.config['ALLOWED_EXTENSIONS']:
             filename = str(uuid.uuid1()) + '.' + f.filename.rsplit('.', 1)[1]
             f.save(current_app.config['UPLOAD_IMG'] + filename)
+            if 'post_img' not in session :
+                session['post_img']='image/postimg/' + filename
             return filename
     return redirect(url_for('main.writePost'))
+
+# @login_required
+# @main.route('/comment/<post_id>',methods=["GET","POST"])
+# def comment(post_id):
+#     comment = Comment()
+#     comment.text = request.form.get('text')
+#
+#     comment.post_id = post_id
+#     comment.user_id = current_user.id
+#     db.session.add(comment)
+#     db.session.commit()
+#     post = Post.query.get_or_404(post_id)
+#     post.weight_value = 0.1 * post.clicknum + 0.3 * len(post.liked) + 0.5 * post.comments.count()
+#
+#     message = Message(tag='comment', post_id=post_id, comment_username=current_user.username, comment_body=comment.text,
+#                       post_title=post.title, comment_id=comment.id, user_id=post.user.id)
+#     db.session.add_all([message, post])
+#     db.session.commit()
+#     return redirect(request.args.get('next') or url_for('main.post',post_id=post_id))
+#
+
+@login_required
+@main.route('/commentreply/<postid>',methods=["POST","GET"])
+def replycomment(postid):
+    if current_user.is_authenticated:
+
+        comment=Comment()
+        comment.text =request.form.get('input')
+        if not comment.text:
+            comment.text=request.form.get('text')
+        comment.post_id=postid
+        comment.user_id=current_user.id
+        db.session.add(comment)
+        db.session.commit()
+        post=Post.query.get_or_404(postid)
+        post.weight_value = 0.1 * post.clicknum + 0.3 * len(post.liked) + 0.5 * post.comments.count()
+
+        message = Message(tag='comment',post_id=postid,comment_username=current_user.username,comment_body=comment.text,post_title=post.title,comment_id=comment.id,user_id=post.user.id)
+        db.session.add_all([message,post])
+        db.session.commit()
+
+        username = comment.user.username
+        comment_text = comment.text
+        comment_time = comment.date
+
+        if current_user.userimg_url:
+            comment_user_img = current_user.userimg_url
+        else:
+            comment_user_img = '010a1b554c01d1000001bf72a68b37.jpg@1280w_1l_2o_100sh.png'
+        data={'username':username,'comment_text':comment_text,'comment_time':comment_time,'comment_user_img':comment_user_img}
+        return jsonify(data)
+    return redirect(url_for('auto.login'))
+
+
+@login_required
+@main.route('/commentchildren/<postid>/<commentid>',methods=["POST","GET"])
+def comment(postid,commentid):
+    if current_user.is_authenticated:
+        comment = Comment()
+        comment.post_id = postid
+        comment.user_id = current_user.id
+        comment.parent_id = commentid
+        comment.text = request.form.get('input')
+        db.session.add(comment)
+        db.session.commit()
+        post = Post.query.get_or_404(postid)
+        post.weight_value = 0.1 * post.clicknum + 0.3 * len(post.liked) + 0.5 * post.comments.count()
+
+        message = Message(tag='comment', post_id=postid, comment_username=current_user.username, comment_body=comment.text,
+                          post_title=post.title, comment_id=comment.id,user_id=post.user.id)
+
+        db.session.add_all([message,post])
+        db.session.commit()
+
+        username = current_user.username
+        u = comment.text.split(' ')[0]
+        comment_text = comment.text
+        comment_time = comment.date
+        comment_id=comment.id
+        pcomment_id=commentid
+        data={'username':username,'u':u,'comment_text':comment_text,'comment_time':comment_time,'comment_id':comment_id,'pcomment_id':pcomment_id}
+        return jsonify(data)
+
+
+    return redirect(url_for('auto.login'))
+
+
+#用户喜欢
+@login_required
+@main.route('/likes/<post_id>')
+def like(post_id):
+    post=Post.query.get_or_404(post_id)
+    if current_user.is_authenticated:
+        if current_user not in post.liked:
+            post.liked.append(current_user)
+            post.likenum=post.likenum+1
+            db.session.add(post)
+            db.session.commit()
+            msg=Message()
+            msg.msg='表示喜欢'
+            msg.tag='like'
+            msg.post_title=post.title
+            msg.post_id=post_id
+            msg.user_id=current_user.id
+            msg.comment_username=current_user.username
+            db.session.add(msg)
+            db.session.commit()
+        return redirect(request.args.get('next') or url_for('.post',post_id=post_id))
+    return redirect(url_for('auto.login'))
+
+@permission_required(Permission.MODERATE_COMMENTS or Permission.ADMINISTER)
+
+@main.route('/removepost/<post_id>')
+def removepost(post_id):
+    post = Post.query.filter_by(id=post_id).first()
+
+    db.session.delete(post)
+    db.session.commit()
+    return redirect(request.args.get('next') or url_for('.user',username=current_user.username))
+
+from datetime import datetime,timedelta
+@main.route('/hotposts/<int:status>')
+def hotposts(status):
+    start=datetime.now()-timedelta(days=status)
+    if status==7:
+        img='/static/7.png'
+    else:
+        img='/static/30.png'
+    posts=Post.query.filter(Post.publish_date >=start).order_by(Post.weight_value.desc(),Post.publish_date.desc()).all()
+    return render_template('hotpost.html',posts=posts,img=img)

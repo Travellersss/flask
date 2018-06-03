@@ -1,0 +1,46 @@
+.user{
+    background-color:#f8f8f8;
+}
+
+.user .user-img{
+    display:inline;
+    float:left;
+    margin-left:20px;
+    margin-top:20px;
+    margin-right:20px;
+}
+.user .user-img img{
+    border-radius:50%;
+}
+.user .user-info{
+
+    display:inline;
+}
+.user .user-info h4{
+    margin-top:20px;
+
+}
+
+.user .user-info a{
+    color:#969696;
+}
+.user .user-info .btn{
+    float:right;
+    border-radius:20px;
+    margin-left:20px;
+    color:white;
+    margin-bottom:20px;
+}
+.user .about_me{
+    margin-left:20px;
+    color:#969696;
+}
+.user .user-buttom .btn{
+    border-radius:20px;
+
+}
+
+.user .user-img:hover span{
+    display:block;
+
+}

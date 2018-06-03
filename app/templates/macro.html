@@ -3,11 +3,11 @@
     <li  {% if not pagination.has_prev %} class="disabled"{% endif %}>
         {% if username==None%}
         <a href="{% if pagination.has_prev%}{{url_for(endpoint,page=pagination.prev().page)}}{%else%}#{%endif%}" aria-label="Previous">
-            <span aria-hidden="true">&laquo;</span>
+            <span aria-hidden="true">上一页</span>
         </a>
         {%else %}
-        <a href="{% if pagination.has_prev%}{{url_for(endpoint,username=username,page=pagination.prev().page)}}{%else%}#{%endif%}" aria-label="Previous">
-            <span aria-hidden="true">&laquo;</span>
+        <a href="{% if pagination.has_prev%}{{url_for(endpoint,username=username,page=pagination.prev().page)}}{%else%}void(){%endif%}" aria-label="Previous">
+            <span aria-hidden="true">上一页</span>
         </a>
         {% endif %}
     </li>
@@ -35,11 +35,11 @@
     <li {% if not pagination.has_next%} class="disabled" {% endif %}>
         {% if username==None%}
         <a href="{% if pagination.has_next %}{{url_for(endpoint,page=pagination.next().page)}} {%else%}#{% endif %}" aria-label="Next">
-            <span aria-hidden="true">&raquo;</span>
+            <span aria-hidden="true">下一页</span>
         </a>
         {% else%}
         <a href="{% if pagination.has_next %}{{url_for(endpoint,username=username,page=pagination.next().page)}} {%else%}#{% endif %}" aria-label="Next">
-            <span aria-hidden="true">&raquo;</span>
+            <span aria-hidden="true">下一页</span>
         </a>
         {% endif %}
     </li>

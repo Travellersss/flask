@@ -1,3 +1,7 @@
+.container-first{
+    position:relative;
+    top:60px;
+}
 .profile-thumbnail {
     position: absolute;
 }

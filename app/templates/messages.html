@@ -3,27 +3,96 @@
 我的消息
 {% endblock%}
 {% block body%}
-<div class="row" style="margin-top:20px;">
-    <ul class="nav nav-tabs">
-  <li role="presentation" class="active"><a href="{{url_for('main.mymessage')}}">未读</a></li>
-  <li role="presentation" ><a href="{{url_for('main.show_read_message')}}">已读</a></li>
-
-</ul>
-</div>
-<ul>
-    {% for msg in messages%}
-    {% if msg.tag=='comment'%}
-    <li>
-        <a href="{{url_for('main.user',username=msg.comment_username)}}">{{msg.comment_username}}</a>
-        对您的文章：《<a href="{{url_for('main.post',post_id=msg.post_id)}}"><b>{{msg.post_title}}</b></a>》做出了评价：
-        <p>{{msg.comment_body}}</p>
-    </li>
-    {% else%}
-    <li>
+{% block css %}
+<link rel="stylesheet" href="{{url_for('static',filename='css/msg.css')}}">
+{% endblock%}
+<hr>
+<div class="row">
+    <div class="col-lg-3" >
+        <div class="list-group">
+            <a href="{{url_for('main.mymessage',tag='comment')}}"><button type="button" class="list-group-item {% if tag=='comment' %}temp{%endif%}"><span class="glyphicon glyphicon-comment" aria-hidden="true">&nbsp;</span>评论
+             {% if current_user.messages.filter_by(status=True,tag='comment').count() >0 %} <span class="badge" style="float:right;">{{current_user.messages.filter_by(status=True,tag='comment').count()}}</span>{% endif %}
+            </button></a>
+            <a href="{{url_for('main.mymessage',tag='store')}}"><button type="button" class="list-group-item {% if tag=='store' %}temp{%endif%}"><span class="glyphicon glyphicon-bookmark" aria-hidden="true">&nbsp;</span>收藏
+            {% if current_user.messages.filter_by(status=True,tag='store').count() >0 %} <span class="badge">{{current_user.messages.filter_by(status=True,tag='store').count()}}</span>{% endif %}
+            </button></a>
+            <a href="{{url_for('main.mymessage',tag='up')}}"><button type="button" class="list-group-item {% if tag=='up' %}temp{%endif%}"><span class="glyphicon glyphicon-thumbs-up" aria-hidden="true">&nbsp;</span>点赞
+             {% if current_user.messages.filter_by(status=True,tag='up').count() >0 %} <span class="badge">{{current_user.messages.filter_by(status=True,tag='up').count()}}</span>{% endif %}
+            </button></a>
+            <a href="{{url_for('main.mymessage',tag='like')}}"><button type="button" class="list-group-item {% if tag=='like' %}temp{%endif%}"><span class="glyphicon glyphicon-heart" aria-hidden="true">&nbsp;</span>喜欢
+             {% if current_user.messages.filter_by(status=True,tag='like').count() >0 %} <span class="badge">{{current_user.messages.filter_by(status=True,tag='like').count()}}</span>{% endif %}
+            </button></a>
+            <a href="{{url_for('main.mymessage',tag='follow')}}"><button type="button" class="list-group-item {% if tag=='follow' %}temp{%endif%}"><span class="glyphicon glyphicon-user" aria-hidden="true">&nbsp;</span>关注
+              {% if current_user.messages.filter_by(status=True,tag='follow').count() >0 %} <span class="badge">{{current_user.messages.filter_by(status=True,tag='follow').count()}}</span>{% endif %}
+            </button></a>
+            <a href="{{url_for('main.mymessage',tag='system')}}"><button type="button" class="list-group-item {% if tag=='system' %}temp{%endif%}"><span class="glyphicon glyphicon-envelope" aria-hidden="true">&nbsp;</span>系统消息
+             {% if current_user.messages.filter_by(status=True,tag='system').count() >0 %} <span class="badge">{{current_user.messages.filter_by(status=True).count()}}</span>{% endif %}
+            </button></a>
+        </div>
+    </div>
+    <div class=" col-lg-9">
+        <ul class="nav nav-tabs">
+            <li role="presentation" class="active"><a href="{{url_for('main.mymessage',tag=tag)}}">未读</a></li>
+            <li role="presentation"><a href="{{url_for('main.show_read_message',tag=tag)}}">已读</a></li>
+        </ul>
+        <div class="message">
+                   <ul>
+                       {% if messages %}
+           {% for msg in messages%}
+           {% if tag=='comment'%}
+                <li class="msg-comment">
+                <h4><a href="{{url_for('main.user',username=msg.comment_username)}}">{{msg.comment_username}}</a>
+                    对您的文章：《<a href="{{url_for('main.post',post_id=msg.post_id)}}"><b>{{msg.post_title}}</b></a>》做出了评价：</h4>
+                    <p>{{msg.comment_body}}</p>
+                    <div class="msg-comment-info">
+                    {{msg.timestamp}}
+                    <a href="{{url_for('.post',post_id=msg.post_id)}}#comment-{{msg.comment_id}}"><span class="glyphicon glyphicon-comment" aria-hidden="true">&nbsp;回复</span></a>
+                    <a href="{{url_for('main.removemessage',msg_id=msg.id)}}"><span class="glyphicon glyphicon-trash" aria-hidden="true">&nbsp;删除</span></a>
+                    </div>
+                    <hr>
+                 </li>
+           {% elif tag=='follow'%}
+                 <li class="msg-follow">
         <a href="{{url_for('main.user',username=msg.comment_username)}}">{{msg.comment_username}}</a>关注了您！
+
+    <p>{{msg.timestamp}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="{{url_for('main.removemessage',msg_id=msg.id)}}"><span class="glyphicon glyphicon-trash" aria-hidden="true">&nbsp;删除</span></a>
+                </p>
+
+                     <hr>
     </li>
-    {% endif %}
-{% endfor %}
-</ul>
+           {% elif tag=='store'%}
+               <li class="msg-store">
+               <a href="{{url_for('main.user',username=msg.commment_username)}}">{{msg.comment_username}}</a>收藏了你的文章：
+
+                   <a href="{{url_for('main.post',post_id=msg.post_id)}}">{{msg.post_title}}</a>
+               <p>{{msg.timestamp}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="{{url_for('main.removemessage',msg_id=msg.id)}}"><span class="glyphicon glyphicon-trash" aria-hidden="true">&nbsp;删除</span></a>
+                </p>
+                   <hr>
+                </li>
+           {% elif tag=='like'%}
+            <li>
+                <a href="{{url_for('main.user',username=msg.comment_username)}}">{{msg.comment_username}}</a>表示喜欢你的文章：
+               <a href="{{url_for('main.post',post_id=msg.post_id)}}">{{msg.post_title}}</a>
+           <p>{{msg.timestamp}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="{{url_for('main.removemessage',msg_id=msg.id)}}"><span class="glyphicon glyphicon-trash" aria-hidden="true">&nbsp;删除</span></a>
+                </p>
+                <hr>
+           </li>
+            {% endif %}
+            {% endfor %}
+                       {% else %}
+                       <div class="no-img">
+                       <img src="/static/icon_nocontent-00c423de394b9184d467f2f2a7284b54.png" alt="tupain" width="100px;" height="100px;">
+                       <p>还没有消息哦！</p>
+                       </div>
+                       {% endif %}
+    </ul>
+
+        </div>
+    </div>
+
+</div>
 
 {% endblock%}

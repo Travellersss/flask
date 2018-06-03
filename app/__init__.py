@@ -11,6 +11,14 @@ from jieba.analyse import ChineseAnalyzer
 from flask_socketio import SocketIO,emit
 from flask_cache import Cache
 from flask_celery import Celery
+import flask_whooshalchemyplus
+from flask_whooshalchemyplus import index_all
+
+
+
+
+
+
 
 
 
@@ -42,8 +50,12 @@ def create_app():
     pagedown.init_app(app)
     socketio.init_app(app)
     cache.init_app(app)
+    flask_whooshalchemyplus.init_app(app)
+    db = SQLAlchemy(app)
     celery.init_app(app)
+    index_all(app)
     db.init_app(app)
+
 
 
 

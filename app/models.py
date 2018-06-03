@@ -9,7 +9,7 @@ from markdown import markdown
 import bleach
 from app.exceptions import ValidationError
 from sqlalchemy.sql.expression import not_,or_
-
+from jieba.analyse.analyzer import ChineseAnalyzer
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -111,10 +111,13 @@ class User(UserMixin,db.Model):
         if not self.is_following(user):
             f=Follow(follower=self,followed=user)
             db.session.add(f)
+            db.session.commit()
     def unfollow(self,user):
         f=self.followed.filter_by(followed_id=user.id).first()
         if f:
             db.session.delete(f)
+            db.session.commit()
+
     def is_following(self,user):
         return self.followed.filter_by(followed_id=user.id).first() is not None
     def is_followed_by(self,user):
@@ -258,20 +261,35 @@ store=db.Table('user_posts',
                db.Column('user_id',db.Integer(),db.ForeignKey('user.id')),
                db.Column('post_id',db.Integer(),db.ForeignKey('post.id')))
 
+records=db.Table('records',
+               db.Column('user_id',db.Integer(),db.ForeignKey('user.id')),
+               db.Column('post_id',db.Integer(),db.ForeignKey('post.id')))
 
+likes=db.Table('likes',
+               db.Column('user_id',db.Integer(),db.ForeignKey('user.id')),
+               db.Column('post_id',db.Integer(),db.ForeignKey('post.id')))
 
 class Post(db.Model):
     __searchable__ = ['title', 'content']
+    __analyzer__ = ChineseAnalyzer()
     id=db.Column(db.Integer(),primary_key=True)
     title = db.Column(db.String(255))
     content=db.Column(db.Text())
     clicknum=db.Column(db.Integer(),default=0)
+    likenum=db.Column(db.Integer(),default=0)
     publish_date=db.Column(db.DateTime(),index=True,default =datetime.utcnow)
-    body_html=db.Column(db.Text)
+    post_img=db.Column(db.String(255),nullable=True)
+    body_html=db.Column(db.Text())
+
+    weight_value =db.Column(db.Float(),index=True,default=0,nullable=True)
     comments=db.relationship('Comment',backref='post',lazy='dynamic')
     user_id=db.Column(db.Integer(),db.ForeignKey('user.id'))
-    storybyuser=db.relationship('User',secondary=store,backref=db.backref('storeposts',lazy='dynamic'))
+    storybyuser=db.relationship('User',secondary=store,backref=db.backref('user',lazy='dynamic'))
     tags=db.relationship('Tag',secondary=tags,backref=db.backref('posts',lazy='dynamic'))
+    records=db.relationship('User',secondary=records,backref=db.backref('read_records',lazy='dynamic'))
+    liked=db.relationship('User',secondary=likes,backref=db.backref('like_posts',lazy='dynamic'))
+
+
 
     def to_json(self):
         json_post = {
@@ -354,8 +372,8 @@ class Comment(db.Model):
     disable=db.Column(db.Boolean)
     post_id=db.Column(db.Integer(),db.ForeignKey('post.id'))
     user_id=db.Column(db.Integer(),db.ForeignKey('user.id'))
-    # parent_id=db.Column(db.Integer(),db.ForeignKey('comment.id'))
-    # parent=db.relationship('Comment',backref='childrens',lazy='dynamic')
+    parent_id=db.Column(db.Integer(),db.ForeignKey('comment.id'))
+    childrens=db.relationship('Comment')
     def to_json(self):
         json_comment = {
             'url': url_for('api.get_comment', id=self.id),
@@ -367,24 +385,18 @@ class Comment(db.Model):
         }
         return json_comment
 
-    @staticmethod
-    def on_changed_body(target, value, oldvalue, initator):
-        allowed_tags = ['a', 'abbr', 'acronym', 'b', 'blockquote', 'code', 'em', 'li', 'i', 'ol', 'pre', 'strong', 'ul',
-                        'h1',
-                        'h2', 'h3', 'h4', 'p']
-        target.body_html = bleach.linkify(
-            bleach.clean(markdown(value, output_format='html'), tags=allowed_tags, strip=True))
 
     def __repr__(self):
         return self.text[:15]
 
 
-db.event.listen(Comment.text,'set',Comment.on_changed_body)
+
 class Tag(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     title = db.Column(db.String(255))
 
     parent_id=db.Column(db.Integer(),db.ForeignKey('tag.id'))
+    childrens = db.relationship('Tag')
 
     @staticmethod
     def createTag():
@@ -413,12 +425,20 @@ class Message(db.Model):
     id=db.Column(db.Integer(),primary_key=True)
     status=db.Column(db.Integer(),default=True)
     timestamp=db.Column(db.DateTime(),default=datetime.utcnow())
+    #消息内容
     msg=db.Column(db.String(255))
+    #消息标签
     tag=db.Column(db.String(255))
+    #动作者用户名
     comment_username=db.Column(db.String(255))
+    #评论
     comment_body=db.Column(db.String(255))
+    #博文标题
     post_title=db.Column(db.String(255))
-    post_id=db.Column(db.String(255))
+    #博文ID
+    post_id=db.Column(db.String(11))
+    comment_id=db.Column(db.String(11))
+    #用户ID
     user_id=db.Column(db.Integer(),db.ForeignKey('user.id'))
     def __repr__(self):
         return self.msg

@@ -14,8 +14,11 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
+        #判断用户存在且密码正确
         if user is not None and user.verify_password(form.password.data):
-            if 'code' in session and session.get('code',None)==form.verification_code.data.upper():
+            #判断验证码（验证码被随机创建后，存储在session['code']中）正确性
+            if 'code' in session and \
+                session.get('code',None)==form.verification_code.data.upper():
                 login_user(user,form.remenber_me.data)
                 old_img=session.get('img_url',None)
                 if old_img:
@@ -30,7 +33,7 @@ def login():
             img_url, strs = create_validate_code()
             session['code'] = strs
             session['img_url'] = img_url
-
+            #输出错误信息
             flash('验证码错误，请重新输入！')
             return render_template('auto/login.html', form=form, img_url=img_url)
         flash('密码或者用户名错误')
@@ -42,7 +45,7 @@ def login():
     session['img_url']=img_url
     return render_template('auto/login.html',form =form,img_url=img_url)
 
-
+#验证码获取代码
 @auto.route('/createnewcode')
 def createnewcode():
     old_img=session.get('img_url',None)

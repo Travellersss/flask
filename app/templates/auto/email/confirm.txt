@@ -1,7 +1,4 @@
 Dear {{user.username}},
-        welcome to Flasky!
+        welcome to blog!
         请点击下面链接确认你的账户信息：
-        {{url_for('auto.confirm',token=token,_external=True)}},
-        Sincerely,
-        The flasky team
-        note:replies to this email address are not monitored.
+        {{url_for('auto.confirm',token=token,_external=True)}}
