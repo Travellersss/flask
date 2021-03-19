@@ -39,7 +39,7 @@ httpie==0.9.9
 idna==2.6
 itsdangerous==0.24
 jieba==0.39
-Jinja2==2.10
+Jinja2==2.11.3
 jsmin==2.2.2
 kombu==4.1.0
 Mako==1.0.7
